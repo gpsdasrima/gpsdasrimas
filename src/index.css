@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Paleta — graffiti/tecnologia sobre grafite escuro */
+  --color-ink-950: #0a0a0c;
+  --color-ink-900: #101013;
+  --color-ink-800: #17171b;
+  --color-ink-700: #1f1f25;
+  --color-ink-600: #2a2a32;
+  --color-ink-500: #3a3a44;
+  --color-chalk-100: #f5f5f2;
+  --color-chalk-300: #c7c7cf;
+  --color-chalk-500: #8f8f9a;
+
+  --color-signal-red: #ff3b5c;
+  --color-signal-green: #3ddc84;
+  --color-gps-blue: #3d8bff;
+  --color-signal-yellow: #e3ff2e;
+  --color-signal-yellow-dim: #4a4d0f;
+  --color-signal-gold: #ffc73d;
+
+  --font-display: 'Anton', 'Arial Narrow', sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+
+  --shadow-card: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  color: var(--color-chalk-100);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(227, 255, 46, 0.07), transparent 45%),
+    radial-gradient(circle at 100% 20%, rgba(61, 139, 255, 0.07), transparent 40%);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.leaflet-container {
+  background: var(--color-ink-900);
+  font-family: var(--font-body);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--color-ink-800);
+  color: var(--color-chalk-100);
+}
+.leaflet-control-attribution {
+  background: rgba(10, 10, 12, 0.7) !important;
+  color: var(--color-chalk-500) !important;
+}
+.leaflet-control-attribution a {
+  color: var(--color-chalk-300) !important;
+}
+.leaflet-control-zoom a {
+  background: var(--color-ink-800) !important;
+  color: var(--color-chalk-100) !important;
+  border-color: var(--color-ink-600) !important;
+}
+
+.pin-pulse {
+  animation: pin-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pin-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--color-ink-800) 30%,
+    var(--color-ink-700) 45%,
+    var(--color-ink-800) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-pulse, .skeleton, * {
+    animation-duration: 0.001ms !important;
+  }
+}

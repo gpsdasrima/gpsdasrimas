@@ -1,0 +1,252 @@
+import { Link, useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
+import { useBattleStore } from '../store/battleStore';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { useNow } from '../hooks/useNow';
+import { getBattleLiveState } from '../utils/date';
+import { distanceKm } from '../utils/geo';
+import { BattleCard } from '../components/BattleCard';
+import { BattleCardSkeleton } from '../components/BattleCardSkeleton';
+import { BRAND } from '../constants/assets';
+
+export function Home() {
+  const navigate = useNavigate();
+  const { battles } = useBattleStore();
+  const now = useNow();
+  const geo = useGeolocation();
+  const loadingNearby = geo.status === 'loading';
+
+  const approved = useMemo(() => battles.filter((b) => b.status === 'aprovada'), [battles]);
+
+  const withState = useMemo(
+    () => approved.map((battle) => ({ battle, state: getBattleLiveState(battle, now) })),
+    [approved, now]
+  );
+
+  const aoVivo = withState.filter((b) => b.state === 'ao_vivo').slice(0, 4);
+  const proximasAll = withState.filter((b) => b.state === 'hoje' || b.state === 'proxima');
+  const proximas = [...proximasAll]
+    .sort((a, b) => (a.battle.date + a.battle.time).localeCompare(b.battle.date + b.battle.time))
+    .slice(0, 4);
+  const populares = [...withState].sort((a, b) => b.battle.rating - a.battle.rating).slice(0, 4);
+
+  const pertoDeVoce = useMemo(() => {
+    if (!geo.coords) return [];
+    return withState
+      .map((item) => ({
+        ...item,
+        distance: distanceKm(geo.coords![0], geo.coords![1], item.battle.latitude, item.battle.longitude),
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 4);
+  }, [geo.coords, withState]);
+
+  const aoVivoCount = withState.filter((b) => b.state === 'ao_vivo').length;
+  const popularesCount = withState.filter((b) => b.battle.rating > 0).length;
+
+  function handleFindNearby() {
+    geo.request();
+  }
+
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  return (
+    <div className="pb-8">
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-ink-700 px-4 py-10 sm:px-6 sm:py-14">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 20% 20%, rgba(227,255,46,0.16), transparent 40%), radial-gradient(circle at 85% 10%, rgba(61,139,255,0.15), transparent 35%)',
+          }}
+        />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-6 lg:flex-row lg:justify-between lg:gap-4">
+          <div className="max-w-xl text-center lg:text-left">
+            <p className="mb-3 text-sm font-semibold text-signal-yellow">O mapa nacional das batalhas de rima</p>
+            <h1 className="font-display text-4xl leading-tight tracking-wide text-chalk-100 sm:text-6xl">
+              ENCONTRE SUA
+              <br /> PRÓXIMA RIMA.
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-base text-chalk-300 lg:mx-0">
+              Descubra onde a cena está acontecendo.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+              <button
+                onClick={handleFindNearby}
+                className="w-full rounded-xl bg-signal-yellow px-6 py-3.5 text-sm font-bold text-ink-950 shadow-card transition hover:brightness-110 sm:w-auto"
+              >
+                📍 Batalhas perto de mim
+              </button>
+              <Link
+                to="/mapa"
+                className="w-full rounded-xl border border-ink-600 bg-ink-800 px-6 py-3.5 text-center text-sm font-bold text-chalk-100 transition hover:border-gps-blue hover:text-gps-blue sm:w-auto"
+              >
+                🗺️ Explorar mapa
+              </Link>
+            </div>
+            {geo.status === 'denied' && (
+              <p className="mt-4 text-xs text-signal-red">
+                Não conseguimos acessar sua localização. Use a busca por cidade na página Batalhas.
+              </p>
+            )}
+          </div>
+
+          <img
+            src={BRAND.mascot}
+            alt=""
+            className="h-56 shrink-0 object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.5)] sm:h-72 lg:h-96"
+          />
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6">
+        {/* Batalhas em destaque — resumo rápido por categoria */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatPill
+            icon="🔴"
+            label="Ao vivo agora"
+            count={aoVivoCount}
+            tone="red"
+            onClick={() => scrollToSection('ao-vivo')}
+          />
+          <StatPill
+            icon="🟢"
+            label="Perto de você"
+            count={geo.coords ? pertoDeVoce.length : null}
+            tone="green"
+            onClick={geo.coords ? () => scrollToSection('perto-de-voce') : handleFindNearby}
+          />
+          <StatPill
+            icon="🔵"
+            label="Próximas batalhas"
+            count={proximasAll.length}
+            tone="blue"
+            onClick={() => scrollToSection('proximas')}
+          />
+          <StatPill
+            icon="⭐"
+            label="Populares"
+            count={popularesCount}
+            tone="yellow"
+            onClick={() => scrollToSection('populares')}
+          />
+        </div>
+
+        {geo.coords && (
+          <Section id="perto-de-voce" title="📍 Perto de você" emptyText="Nenhuma batalha próxima encontrada.">
+            {pertoDeVoce.map(({ battle, state, distance }) => (
+              <BattleCard key={battle.id} battle={battle} liveState={state} distanceKm={distance} />
+            ))}
+          </Section>
+        )}
+
+        {loadingNearby && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <BattleCardSkeleton key={i} />
+            ))}
+          </div>
+        )}
+
+        <Section id="ao-vivo" title="🔥 Ao vivo agora" emptyText="Nenhuma batalha ao vivo neste momento.">
+          {aoVivo.map(({ battle, state }) => (
+            <BattleCard key={battle.id} battle={battle} liveState={state} />
+          ))}
+        </Section>
+
+        <Section id="proximas" title="📅 Próximas batalhas" emptyText="Nenhuma batalha agendada no momento.">
+          {proximas.map(({ battle, state }) => (
+            <BattleCard key={battle.id} battle={battle} liveState={state} />
+          ))}
+        </Section>
+
+        <Section id="populares" title="⭐ Batalhas populares" emptyText="Ainda não há avaliações suficientes.">
+          {populares.map(({ battle, state }) => (
+            <BattleCard key={battle.id} battle={battle} liveState={state} />
+          ))}
+        </Section>
+
+        <div className="rounded-2xl border border-dashed border-ink-600 p-6 text-center">
+          <p className="text-sm text-chalk-300">
+            Organiza uma batalha e quer colocá-la no mapa?
+          </p>
+          <button
+            onClick={() => navigate('/cadastrar')}
+            className="mt-3 rounded-xl bg-ink-800 px-5 py-2.5 text-sm font-semibold text-chalk-100 hover:bg-ink-700"
+          >
+            Cadastrar batalha
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  id,
+  title,
+  children,
+  emptyText,
+}: {
+  id?: string;
+  title: string;
+  children: React.ReactNode;
+  emptyText: string;
+}) {
+  const items = Array.isArray(children) ? children : [children];
+  const hasItems = items.filter(Boolean).length > 0;
+
+  return (
+    <section id={id} className="scroll-mt-20">
+      <h2 className="font-display text-xl tracking-wide text-chalk-100">{title}</h2>
+      {hasItems ? (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      ) : (
+        <p className="mt-4 text-sm text-chalk-500">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+const STAT_TONE_CLASSES: Record<string, string> = {
+  red: 'text-signal-red',
+  green: 'text-signal-green',
+  blue: 'text-gps-blue',
+  yellow: 'text-signal-yellow',
+};
+
+function StatPill({
+  icon,
+  label,
+  count,
+  tone,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  count: number | null;
+  tone: 'red' | 'green' | 'blue' | 'yellow';
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-start gap-1 rounded-2xl border border-ink-700 bg-ink-800/50 p-3.5 text-left transition-colors hover:border-ink-500 sm:p-4"
+    >
+      <span className={`flex items-center gap-1.5 text-xs font-semibold sm:text-sm ${STAT_TONE_CLASSES[tone]}`}>
+        {icon} {label}
+      </span>
+      <span className="font-display text-lg text-chalk-100">
+        {count === null ? '—' : count}
+        {count !== null && (
+          <span className="ml-1 font-body text-xs font-normal text-chalk-500">
+            {count === 1 ? 'batalha' : 'batalhas'}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
