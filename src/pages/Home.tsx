@@ -55,15 +55,16 @@ export function Home() {
   return (
     <div className="pb-8">
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-ink-700 px-4 py-10 sm:px-6 sm:py-14">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 20% 20%, rgba(227,255,46,0.16), transparent 40%), radial-gradient(circle at 85% 10%, rgba(61,139,255,0.15), transparent 35%)',
-          }}
+      <section className="relative flex h-[420px] items-center overflow-hidden border-b border-ink-700 sm:h-[480px] lg:h-[560px]">
+        <img
+          src={BRAND.heroBanner}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[65%_center]"
         />
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-6 lg:flex-row lg:justify-between lg:gap-4">
+        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/75 to-ink-950/25" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/90 via-ink-950/30 to-transparent" />
+
+        <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
           <div className="max-w-xl text-center lg:text-left">
             <p className="mb-3 text-sm font-semibold text-signal-yellow">O mapa nacional das batalhas de rima</p>
             <h1 className="font-display text-4xl leading-tight tracking-wide text-chalk-100 sm:text-6xl">
@@ -82,7 +83,7 @@ export function Home() {
               </button>
               <Link
                 to="/mapa"
-                className="w-full rounded-xl border border-ink-600 bg-ink-800 px-6 py-3.5 text-center text-sm font-bold text-chalk-100 transition hover:border-gps-blue hover:text-gps-blue sm:w-auto"
+                className="w-full rounded-xl border border-chalk-100/30 bg-ink-950/40 px-6 py-3.5 text-center text-sm font-bold text-chalk-100 backdrop-blur transition hover:border-gps-blue hover:text-gps-blue sm:w-auto"
               >
                 🗺️ Explorar mapa
               </Link>
@@ -93,12 +94,6 @@ export function Home() {
               </p>
             )}
           </div>
-
-          <img
-            src={BRAND.mascot}
-            alt=""
-            className="h-56 shrink-0 object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.5)] sm:h-72 lg:h-96"
-          />
         </div>
       </section>
 

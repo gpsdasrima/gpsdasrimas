@@ -6,7 +6,7 @@
 -- precisam de um organizador de verdade (auth.users), já que a tabela
 -- battles referencia profiles(id).
 --
---   E-mail sugerido: gpsdasrimas@email.com
+--   E-mail sugerido: demo@gpsdasrimas.com
 --
 -- Se preferir usar outro e-mail, troque a constante abaixo antes de rodar.
 --
@@ -19,11 +19,11 @@ do $$
 declare
   organizer uuid;
 begin
-  select id into organizer from auth.users where email = 'gpsdasrimas@email.com' limit 1;
+  select id into organizer from auth.users where email = 'demo@gpsdasrimas.com' limit 1;
 
   if organizer is null then
     raise exception
-      'Nenhum usuário com e-mail gpsdasrimas@email.com encontrado. Crie essa conta pelo app (tela "Criar conta") e rode este seed de novo — ou edite o e-mail no topo deste arquivo.';
+      'Nenhum usuário com e-mail demo@gpsdasrimas.com encontrado. Crie essa conta pelo app (tela "Criar conta") e rode este seed de novo — ou edite o e-mail no topo deste arquivo.';
   end if;
 
   insert into public.battles (

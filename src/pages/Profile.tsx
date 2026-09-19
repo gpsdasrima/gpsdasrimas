@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useBattleStore } from '../store/battleStore';
 import { useToastStore } from '../store/toastStore';
 import { TextField } from '../components/FormField';
-import { ImageUploadField } from '../components/ImageUploadField';
+import { CameraCaptureField } from '../components/CameraCaptureField';
 import { MaskIcon } from '../components/MaskIcon';
 import { BattleCard } from '../components/BattleCard';
 import { useNow } from '../hooks/useNow';
@@ -67,15 +67,12 @@ export function Profile() {
 
         {editing ? (
           <div className="w-full flex-1 space-y-3">
-            <ImageUploadField
+            <CameraCaptureField
               label="Foto de perfil"
               value={avatar}
               onChange={setAvatar}
-              bucket="avatars"
               userId={currentUser.id}
-              shape="circle"
-              capture="user"
-              hint="Tire uma selfie na hora ou escolha uma foto do seu aparelho."
+              hint="A câmera abre direto — não dá pra escolher uma foto já salva no aparelho."
             />
             <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
             <TextField label="Cidade" value={city} onChange={(e) => setCity(e.target.value)} />

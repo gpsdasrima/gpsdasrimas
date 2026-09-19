@@ -377,7 +377,7 @@ create policy "battle-images: remover o próprio arquivo"
 -- Próximo passo: rode supabase/seed.sql para ter batalhas de exemplo, e
 -- promova sua própria conta a admin com o comando abaixo (troque o e-mail):
 --
---   update public.profiles set role = 'admin' where email = 'gpsdasrimas@email.com';
+--   update public.profiles set role = 'admin' where email = 'voce@email.com';
 --
 -- (Só é preciso fazer isso manualmente para o PRIMEIRO admin — depois disso,
 -- use a função promote_to_admin() ou o painel /admin do app.)
