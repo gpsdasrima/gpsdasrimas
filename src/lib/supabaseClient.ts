@@ -19,6 +19,6 @@ if (!isSupabaseConfigured) {
 // quebrar o build — as chamadas vão falhar com uma mensagem clara em vez
 // de a tela inteira ficar em branco.
 export const supabase = createClient<Database>(
-  supabaseUrl || ' https://czkjwsrwspgvjncesgzh.supabase.co ',
+  supabaseUrl || 'https://czkjwsrwspgvjncesgzh.supabase.co',
   supabaseAnonKey || 'sb_publishable_5GYeWGhu5gonhlKhmbv7hw_M3l0ERc7'
 );

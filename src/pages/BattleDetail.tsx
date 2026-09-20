@@ -171,12 +171,12 @@ export function BattleDetail() {
       push({ type: 'info', title: 'Entre na sua conta', description: 'Faça login para denunciar uma informação.' });
       return;
     }
-    const ok = await addReport(currentUser.id, currentBattle.id, reason, description);
+    const result = await addReport(currentUser.id, currentBattle.id, reason, description);
     setReportOpen(false);
-    if (ok) {
+    if (result.ok) {
       push({ type: 'success', title: 'Denúncia enviada', description: 'Nossa moderação vai avaliar em breve.' });
     } else {
-      push({ type: 'error', title: 'Não foi possível enviar', description: 'Tente novamente em instantes.' });
+      push({ type: 'error', title: 'Não foi possível enviar', description: result.error ?? 'Tente novamente em instantes.' });
     }
   }
 

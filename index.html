@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0a0c" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!--
+      CSP de reserva via meta tag. O reforço de verdade vem pelos headers
+      HTTP (ver public/_headers e vercel.json), que cobrem diretivas que a
+      tag <meta> não suporta (como frame-ancestors). Isso aqui só garante
+      alguma proteção mesmo em hosts estáticos que não permitem configurar
+      headers customizados.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://router.project-osrm.org; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
 
     <title>GPS DAS RIMAS — O mapa nacional das batalhas de rima</title>
     <meta

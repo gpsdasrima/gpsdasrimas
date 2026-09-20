@@ -13,6 +13,17 @@
 -- Este schema cobre: perfis de usuário, batalhas, favoritos e denúncias,
 -- todos protegidos por Row Level Security (RLS), replicando exatamente as
 -- regras de negócio do app (quem pode ver/criar/editar/remover o quê).
+--
+-- Reforços de segurança incluídos: limite de tamanho em todo campo de
+-- texto, validação de faixa de latitude/longitude, proteção contra
+-- alteração de campos sensíveis (role, email, dono da batalha, nota,
+-- contador de edições) por fora dos fluxos corretos, limite de tipo/
+-- tamanho de arquivo nos buckets de imagem, e trava contra denúncias
+-- duplicadas em aberto.
+--
+-- ⚠️ Já rodou este arquivo antes num projeto que já está em produção?
+-- Não rode de novo do zero — use supabase/hardening.sql, que aplica só
+-- as novas proteções sem precisar recriar tabelas.
 -- =============================================================================
 
 create extension if not exists "pgcrypto";
@@ -23,11 +34,11 @@ create extension if not exists "pgcrypto";
 -- -----------------------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
-  name text not null,
-  email text not null,
-  avatar_url text,
-  city text,
-  state text,
+  name text not null check (char_length(name) between 1 and 80),
+  email text not null check (char_length(email) <= 255),
+  avatar_url text check (avatar_url is null or char_length(avatar_url) <= 500),
+  city text check (city is null or char_length(city) <= 100),
+  state text check (state is null or char_length(state) <= 50),
   role text not null default 'user' check (role in ('user', 'admin')),
   created_at timestamptz not null default now()
 );
@@ -39,29 +50,29 @@ comment on table public.profiles is 'Perfil público de cada usuário, 1:1 com a
 -- -----------------------------------------------------------------------------
 create table if not exists public.battles (
   id uuid primary key default gen_random_uuid(),
-  slug text not null unique,
-  name text not null,
-  description text not null,
-  city text not null,
-  state text not null,
-  neighborhood text not null,
-  address text not null,
-  latitude double precision not null,
-  longitude double precision not null,
+  slug text not null unique check (char_length(slug) between 1 and 160),
+  name text not null check (char_length(name) between 1 and 120),
+  description text not null check (char_length(description) between 1 and 3000),
+  city text not null check (char_length(city) between 1 and 100),
+  state text not null check (char_length(state) between 1 and 10),
+  neighborhood text not null check (char_length(neighborhood) between 1 and 100),
+  address text not null check (char_length(address) between 1 and 300),
+  latitude double precision not null check (latitude between -90 and 90),
+  longitude double precision not null check (longitude between -180 and 180),
   date date not null,
   time time not null,
-  day_of_week text not null,
+  day_of_week text not null check (char_length(day_of_week) <= 40),
   frequency text not null check (frequency in ('semanal', 'quinzenal', 'mensal', 'unico')),
   organizer_id uuid not null references public.profiles (id) on delete cascade,
-  organizer_name text not null,
-  instagram text,
-  tiktok text,
-  whatsapp text,
-  image text,
+  organizer_name text not null check (char_length(organizer_name) between 1 and 120),
+  instagram text check (instagram is null or char_length(instagram) <= 100),
+  tiktok text check (tiktok is null or char_length(tiktok) <= 100),
+  whatsapp text check (whatsapp is null or char_length(whatsapp) <= 30),
+  image text check (image is null or char_length(image) <= 500),
   status text not null default 'pendente' check (status in ('pendente', 'aprovada', 'rejeitada')),
-  editions_count integer not null default 1,
+  editions_count integer not null default 1 check (editions_count >= 0),
   rating numeric(2, 1) not null default 0 check (rating >= 0 and rating <= 5),
-  participants_estimate integer,
+  participants_estimate integer check (participants_estimate is null or participants_estimate >= 0),
   is_demo boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -92,10 +103,17 @@ create table if not exists public.reports (
   reason text not null check (
     reason in ('local_incorreto', 'data_incorreta', 'batalha_nao_existe', 'informacao_falsa', 'outro')
   ),
-  description text,
+  description text check (description is null or char_length(description) <= 1000),
   status text not null default 'pendente' check (status in ('pendente', 'resolvida')),
   created_at timestamptz not null default now()
 );
+
+-- Antiabuso: impede que a mesma pessoa deixe várias denúncias em aberto
+-- empilhadas na mesma batalha (pode denunciar de novo depois que a
+-- anterior for resolvida).
+create unique index if not exists reports_one_open_per_user_battle
+  on public.reports (user_id, battle_id)
+  where status = 'pendente';
 
 -- =============================================================================
 -- Funções auxiliares
@@ -199,6 +217,11 @@ create trigger battles_protect_status
   before update on public.battles
   for each row execute function public.protect_battle_status();
 
+-- Impede que o usuário altere o próprio "role" (role) por fora da função
+-- promote_to_admin, e impede que altere o "email" exibido no perfil sem
+-- que isso venha do e-mail real de login (auth.users) — do contrário
+-- alguém poderia forjar o e-mail mostrado no próprio perfil para se
+-- passar por outra pessoa.
 create or replace function public.protect_profile_role()
 returns trigger
 language plpgsql
@@ -208,6 +231,9 @@ as $$
 begin
   if auth.uid() is not null and new.role is distinct from old.role and not public.is_admin() then
     new.role := old.role;
+  end if;
+  if auth.uid() is not null and new.email is distinct from old.email and not public.is_admin() then
+    new.email := old.email;
   end if;
   return new;
 end;
@@ -238,6 +264,36 @@ drop trigger if exists battles_force_pending on public.battles;
 create trigger battles_force_pending
   before insert on public.battles
   for each row execute function public.force_pending_on_insert();
+
+-- Impede que o organizador (ou qualquer requisição feita fora de uma
+-- sessão confiável) altere campos que deveriam ficar só nas mãos da
+-- moderação: quem é o dono da batalha, a nota média, o contador de
+-- edições, a data de criação e a flag de "exemplo demonstrativo". Sem
+-- isso, um usuário mal-intencionado poderia inflar a própria nota ou
+-- "roubar" a autoria de uma batalha chamando a API diretamente, por
+-- fora da tela de edição.
+create or replace function public.protect_battle_restricted_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null and not public.is_admin() then
+    new.organizer_id := old.organizer_id;
+    new.rating := old.rating;
+    new.editions_count := old.editions_count;
+    new.is_demo := old.is_demo;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists battles_protect_restricted_fields on public.battles;
+create trigger battles_protect_restricted_fields
+  before update on public.battles
+  for each row execute function public.protect_battle_restricted_fields();
 
 -- =============================================================================
 -- Row Level Security
@@ -290,6 +346,7 @@ create policy "battles: só admin remove"
 drop policy if exists "favorites: só o próprio usuário" on public.favorites;
 create policy "favorites: só o próprio usuário"
   on public.favorites for all
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
@@ -318,17 +375,27 @@ create policy "reports: só admin resolve"
 -- pode enviar/trocar/remover): "avatars" para foto de perfil e
 -- "battle-images" para o banner de cada batalha.
 --
+-- Reforço de segurança no próprio bucket (não depende só da validação do
+-- app): tamanho máximo de 5 MB e apenas os tipos de imagem realmente
+-- usados (jpeg/png/webp) — isso vale mesmo que alguém chame a API do
+-- Storage diretamente, por fora do app, tentando enviar um arquivo maior
+-- ou de outro tipo (ex.: SVG, que pode carregar script embutido).
+--
 -- Convenção de caminho dos arquivos: {user_id}/{timestamp}-{nome}.ext
 -- (o primeiro segmento do caminho precisa ser o uid de quem enviou — é o
 -- que as políticas abaixo verificam).
 
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
-insert into storage.buckets (id, name, public)
-values ('battle-images', 'battle-images', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('battle-images', 'battle-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "avatars: leitura pública" on storage.objects;
 create policy "avatars: leitura pública"

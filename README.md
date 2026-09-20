@@ -20,8 +20,9 @@ com autenticação e banco de dados reais via **Supabase**.
 7. [Mapas, GPS e rotas (sem chave paga)](#7-mapas-gps-e-rotas-sem-chave-paga)
 8. [Funcionalidades implementadas](#8-funcionalidades-implementadas)
 9. [O que fica de fora (v2)](#9-o-que-fica-de-fora-v2)
-10. [Deploy](#10-deploy)
-11. [Licença de dados de mapa](#11-licença-de-dados-de-mapa)
+10. [Segurança](#10-segurança)
+11. [Deploy](#11-deploy)
+12. [Licença de dados de mapa](#12-licença-de-dados-de-mapa)
 
 ---
 
@@ -96,6 +97,11 @@ existe um banco de verdade para conversar. Configure o Supabase primeiro
    Email**, desative "Confirm email" enquanto estiver testando localmente —
    assim uma conta criada já entra direto, sem precisar clicar em link de
    e-mail. Em produção, deixe a confirmação ativada.
+7. Se o seu projeto **já existia** antes desta versão (ou seja, você já
+   rodou um `schema.sql` mais antigo), rode também
+   [`supabase/hardening.sql`](./supabase/hardening.sql) — ele adiciona os
+   reforços de segurança mais recentes sem apagar nada. Veja a seção
+   [10. Segurança](#10-segurança) para o que exatamente ele corrige.
 
 Pronto — o app já fala com um banco de dados Postgres real, com autenticação
 de verdade.
@@ -253,7 +259,86 @@ detalhes.
 - Geocodificação automática de endereço (converter "Rua X, 123" em
   coordenadas sem precisar clicar no mapa).
 
-## 10. Deploy
+## 10. Segurança
+
+Este projeto já sai de fábrica com uma base de segurança pensada para os
+dois lados: banco de dados (Supabase/Postgres) e aplicação (React/HTTP).
+
+### Banco de dados
+
+- **RLS (Row Level Security) em toda tabela** — cada linha só é
+  visível/editável por quem deveria, aplicado pelo próprio Postgres, não
+  pela UI (então mesmo chamando a API diretamente, por fora do app, as
+  regras valem).
+- **Campos administrativos travados por trigger**: `role` (perfil) e
+  `status`, `rating`, `editions_count`, `is_demo`, `organizer_id` e
+  `created_at` (batalha) só mudam pelas mãos de um admin ou pelos fluxos
+  corretos — um usuário comum não consegue virar admin, inflar a própria
+  nota ou "roubar" a autoria de uma batalha chamando a API diretamente.
+- **`email` do perfil protegido**: ninguém consegue exibir um e-mail
+  diferente do que usa para logar (evita se passar por outra pessoa).
+- **Limite de tamanho em todo campo de texto** e validação de faixa de
+  latitude/longitude — reduz abuso e payloads gigantes.
+- **Antiabuso em denúncias**: no máximo uma denúncia em aberto por
+  pessoa/batalha por vez.
+- **Buckets de imagem restritos no próprio Storage**: só jpeg/png/webp, até
+  5 MB — vale mesmo que alguém chame a API do Storage diretamente, tentando
+  burlar a validação do app (ex.: enviar um SVG com script embutido, ou um
+  arquivo gigante).
+- **`promote_to_admin()`** é a única forma de promover alguém a admin
+  depois do primeiro — e só funciona se quem chama já for admin.
+
+Se você já rodou `supabase/schema.sql` antes (como no seu projeto), rode
+[`supabase/hardening.sql`](./supabase/hardening.sql) uma vez para aplicar
+essas proteções sem precisar recriar nada. Instalações novas já recebem
+tudo isso direto do `schema.sql` atualizado.
+
+### Aplicação / HTTP
+
+- **Content-Security-Policy** restritiva (bloqueia scripts inline e de
+  origens não autorizadas — só carrega o que o app realmente usa: Supabase,
+  tiles CARTO, OSRM, Google Fonts), configurada em três camadas:
+  [`public/_headers`](./public/_headers) (Netlify), [`vercel.json`](./vercel.json)
+  (Vercel) e uma tag `<meta>` de reserva no `index.html` para hosts que não
+  suportam headers customizados.
+- **`X-Frame-Options: DENY`** e `frame-ancestors 'none'` — impede que o
+  site seja embutido num iframe de outro domínio (clickjacking).
+- **`Permissions-Policy`** restringe câmera/geolocalização ao próprio site
+  e bloqueia recursos que o app não usa (microfone, pagamento, USB).
+- **`Strict-Transport-Security`**, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy` e `Cross-Origin-Opener-Policy` também configurados.
+- **Sem `dangerouslySetInnerHTML`, `eval` nem `innerHTML`** em nenhum
+  componente — o React já escapa tudo por padrão, então não há como um
+  nome ou descrição digitados por alguém virarem HTML/script executável.
+- **Links externos** (Google Maps, Waze, Apple Maps) sempre com
+  `rel="noopener noreferrer"`.
+- **Senha**: mínimo de 8 caracteres com letra e número, validado no
+  cadastro (a política final de senha também pode — e deve — ser reforçada
+  direto no painel do Supabase, veja abaixo).
+- **`.env` no `.gitignore`** — a chave que você usa aqui é a
+  *publishable/anon key*, feita para rodar no navegador e protegida pelo
+  RLS, mas mesmo assim o arquivo não deve ir para um repositório público.
+- **`npm audit`**: 0 vulnerabilidades conhecidas nas dependências no
+  momento em que este projeto foi gerado — vale rodar de novo
+  periodicamente.
+
+### Recomendações que só dá para configurar no painel do Supabase
+
+Isso não dá para aplicar por SQL nem pelo código — precisa ser feito uma
+vez no [painel do seu projeto](https://supabase.com/dashboard):
+
+- **Authentication → Policies → Password**: ative "Leaked password
+  protection" (recusa senhas que já vazaram em outros sites).
+- **Authentication → URL Configuration**: configure a Site URL e as
+  Redirect URLs com o domínio de produção antes de ir ao ar (senão os
+  links de confirmação de e-mail apontam para `localhost`).
+- **Authentication → Providers → Email**: mantenha "Confirm email" ativado
+  em produção (só vale desativar durante testes locais).
+- Considere ativar **CAPTCHA** (hCaptcha, já integrado ao Supabase Auth)
+  nas telas de login/cadastro se o site começar a receber tráfego alto ou
+  tentativas automatizadas.
+
+## 11. Deploy
 
 O projeto gera um build estático padrão (`npm run build` → pasta `dist/`),
 compatível com qualquer host de arquivos estáticos:
@@ -261,19 +346,20 @@ compatível com qualquer host de arquivos estáticos:
 - **Vercel** ou **Netlify**: importe o repositório, comando de build
   `npm run build`, diretório de saída `dist`. Configure `VITE_SUPABASE_URL`
   e `VITE_SUPABASE_ANON_KEY` nas variáveis de ambiente do projeto no painel
-  do host (os mesmos valores do seu `.env`).
+  do host (os mesmos valores do seu `.env`). Os headers de segurança e o
+  fallback de rotas do SPA já vêm prontos em `vercel.json` (Vercel) e
+  `public/_headers` + `public/_redirects` (Netlify) — não precisa
+  configurar nada manualmente nessa parte.
 - **GitHub Pages / Cloudflare Pages**: mesmo processo, ajustando o `base`
-  no `vite.config.ts` se o site não for servido na raiz do domínio.
-
-Como o roteamento é feito no cliente (React Router), configure o host para
-redirecionar todas as rotas para `index.html` (fallback SPA) — Vercel e
-Netlify fazem isso automaticamente para projetos Vite.
+  no `vite.config.ts` se o site não for servido na raiz do domínio (esses
+  hosts não leem `_headers`/`vercel.json`, então os headers de segurança
+  ficam só na tag `<meta>` de reserva do `index.html`).
 
 No Supabase, lembre de configurar **Authentication → URL Configuration**
 com a URL de produção (Site URL e Redirect URLs), senão os links de
 confirmação de e-mail vão apontar para `localhost`.
 
-## 11. Licença de dados de mapa
+## 12. Licença de dados de mapa
 
 Os mapas usam dados © colaboradores do
 [OpenStreetMap](https://www.openstreetmap.org/copyright) e tiles da

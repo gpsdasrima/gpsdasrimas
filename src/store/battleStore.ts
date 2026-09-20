@@ -28,7 +28,12 @@ interface BattleState {
   isFavorite: (userId: string, battleId: string) => boolean;
   favoritesForUser: (userId: string) => Battle[];
 
-  addReport: (userId: string, battleId: string, reason: ReportReason, description?: string) => Promise<boolean>;
+  addReport: (
+    userId: string,
+    battleId: string,
+    reason: ReportReason,
+    description?: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   resolveReport: (id: string) => Promise<boolean>;
 
   battlesByOrganizer: (userId: string) => Battle[];
@@ -223,11 +228,17 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       .select('*')
       .single();
     if (error || !row) {
-      set({ error: errorMessage(error, 'Não foi possível enviar a denúncia.') });
-      return false;
+      // 23505 = violação de índice único — nesse caso é a trava antiabuso
+      // (uma denúncia em aberto por pessoa/batalha) definida no schema.
+      if (error?.code === '23505') {
+        return { ok: false, error: 'Você já tem uma denúncia em aberto para essa batalha. Aguarde a moderação avaliar.' };
+      }
+      const message = errorMessage(error, 'Não foi possível enviar a denúncia.');
+      set({ error: message });
+      return { ok: false, error: message };
     }
     set((s) => ({ reports: [rowToReport(row), ...s.reports] }));
-    return true;
+    return { ok: true };
   },
 
   resolveReport: async (id) => {

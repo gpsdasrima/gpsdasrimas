@@ -18,8 +18,12 @@ export function Signup() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      setError('A senha precisa ter pelo menos 6 caracteres.');
+    if (password.length < 8) {
+      setError('A senha precisa ter pelo menos 8 caracteres.');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Use letras e números na senha para ficar mais difícil de adivinhar.');
       return;
     }
     setLoading(true);
@@ -64,7 +68,7 @@ export function Signup() {
           label="Senha"
           type="password"
           required
-          hint="Mínimo de 6 caracteres."
+          hint="Mínimo de 8 caracteres, com letras e números."
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
