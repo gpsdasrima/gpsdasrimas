@@ -32,8 +32,8 @@ interface Props {
   className?: string;
 }
 
-// Tiles CARTO suportam zoom bem além do padrão de 18 do Leaflet — sem isso,
-// o mapa parava de aproximar antes de mostrar o nível de rua.
+// Tiles do Esri World Dark Gray têm resolução nativa até z16 — além disso o
+// Leaflet amplia (upscale) o último nível em vez de mostrar tile em branco.
 const MAX_ZOOM = 20;
 
 function pinIcon(color: string) {
@@ -157,10 +157,15 @@ export function BattleMap({
       <FitRoute route={followUser ? null : route} />
       <ClickToPick enabled={!!pickable} onPick={onPickLocation} />
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        attribution='&copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, FAO, NOAA, USGS &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         maxZoom={MAX_ZOOM}
-        maxNativeZoom={20}
+        maxNativeZoom={16}
+      />
+      <TileLayer
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={MAX_ZOOM}
+        maxNativeZoom={16}
       />
 
       {hasRoute && (

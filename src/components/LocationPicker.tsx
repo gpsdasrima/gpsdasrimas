@@ -58,10 +58,15 @@ export function LocationPicker({ value, onChange, center }: Props) {
     >
       <InvalidateOnResize />
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        attribution='&copy; Esri, HERE, Garmin, FAO, NOAA, USGS &copy; OpenStreetMap contributors'
         maxZoom={MAX_ZOOM}
-        maxNativeZoom={20}
+        maxNativeZoom={16}
+      />
+      <TileLayer
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={MAX_ZOOM}
+        maxNativeZoom={16}
       />
       <ClickHandler onChange={onChange} />
       {value && <Marker position={value} icon={pickIcon} />}

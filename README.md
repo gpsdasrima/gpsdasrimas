@@ -36,7 +36,7 @@ com autenticação e banco de dados reais via **Supabase**.
 | Roteamento      | React Router 7                                                   |
 | Backend/banco   | **Supabase** (Postgres + Auth + Row Level Security)              |
 | Estado global   | Zustand (cache client-side dos dados vindos do Supabase)         |
-| Mapa            | Leaflet + React-Leaflet, tiles gratuitos OpenStreetMap/CARTO      |
+| Mapa            | Leaflet + React-Leaflet, tiles gratuitos Esri (sem chave)         |
 | Rotas reais     | OSRM (Open Source Routing Machine, gratuito, sem chave)           |
 | PWA             | `vite-plugin-pwa` (manifest + service worker automáticos)        |
 | Lint            | oxlint                                                           |
@@ -173,9 +173,21 @@ no servidor.
 
 ## 7. Mapas, GPS e rotas (sem chave paga)
 
-- **Tiles do mapa**: OpenStreetMap, servidos com o estilo escuro gratuito
-  da CARTO (`basemaps.cartocdn.com/dark_all`), com zoom de até nível **20**
-  (dá pra aproximar até ver o desenho das ruas e quadras).
+- **Tiles do mapa**: estilo escuro gratuito da **Esri** (`World Dark Gray
+  Canvas` + camada de referência com rótulos), sem precisar de chave nem
+  cadastro — resolução nativa até o zoom **16**, e o Leaflet amplia
+  (upscale) além disso em vez de mostrar tile em branco.
+  > ⚠️ Este projeto usava tiles da CARTO antes, mas a CARTO passou a
+  > exigir uma chave gratuita (com cadastro) a partir de agosto de 2026 —
+  > por isso a troca para a Esri, que segue sem exigir nada. Se você
+  > preferir o visual mais escuro da CARTO e não se importar com um
+  > cadastro rápido de 1 minuto, pegue uma chave grátis em
+  > [carto.com/basemaps/apikey](https://carto.com/basemaps/apikey) (até 5
+  > milhões de requisições/mês de graça) e troque a URL do `TileLayer` em
+  > `src/components/BattleMap.tsx` e `src/components/LocationPicker.tsx`
+  > de volta para `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=SUA_CHAVE`
+  > — nesse caso adicione `https://*.basemaps.cartocdn.com` de volta no
+  > `img-src` do CSP (`public/_headers`, `vercel.json` e `index.html`).
 - **Tela cheia no celular**: botão flutuante (⛶) no mapa expande o mapa
   para ocupar a tela inteira do dispositivo, sem cabeçalho nem menu
   atrapalhando; outro toque volta ao normal.
@@ -297,7 +309,7 @@ tudo isso direto do `schema.sql` atualizado.
 
 - **Content-Security-Policy** restritiva (bloqueia scripts inline e de
   origens não autorizadas — só carrega o que o app realmente usa: Supabase,
-  tiles CARTO, OSRM, Google Fonts), configurada em três camadas:
+  tiles Esri, OSRM, Google Fonts), configurada em três camadas:
   [`public/_headers`](./public/_headers) (Netlify), [`vercel.json`](./vercel.json)
   (Vercel) e uma tag `<meta>` de reserva no `index.html` para hosts que não
   suportam headers customizados.
@@ -361,9 +373,10 @@ confirmação de e-mail vão apontar para `localhost`.
 
 ## 12. Licença de dados de mapa
 
-Os mapas usam dados © colaboradores do
-[OpenStreetMap](https://www.openstreetmap.org/copyright) e tiles da
-[CARTO](https://carto.com/attributions), conforme atribuição exibida no
-próprio mapa. Ao evoluir para produção com volume alto de requisições,
-revise os termos de uso de tiles gratuitos da CARTO/OSM ou considere um
-provedor pago com SLA (Mapbox, Google Maps, MapTiler etc.).
+Os mapas usam tiles da [Esri](https://www.esri.com) (World Dark Gray
+Canvas), com dados de OpenStreetMap, HERE, Garmin, FAO, NOAA e USGS,
+conforme atribuição exibida no próprio mapa — gratuitos, sem chave nem
+cadastro, sujeitos aos [termos de uso da Esri](https://www.esri.com/en-us/legal/terms/full-master-agreement)
+para serviços hospedados. Ao evoluir para produção com volume muito alto
+de requisições, considere um provedor pago com SLA (Mapbox, Google Maps,
+MapTiler, ou a própria CARTO com uma chave — veja a seção 7).
