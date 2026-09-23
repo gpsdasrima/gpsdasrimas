@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Calendar,
+  Clock,
+  Compass,
+  Loader2,
+  Locate,
+  Maximize2,
+  Minimize2,
+  Navigation,
+  Users,
+  X,
+} from 'lucide-react';
 import { useBattleStore } from '../store/battleStore';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useRoute } from '../hooks/useRoute';
@@ -32,8 +44,10 @@ export function MapPage() {
   const [manualOrigin, setManualOrigin] = useState<[number, number] | null>(null);
   const [liveNav, setLiveNav] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const origin = manualOrigin ?? geo.coords;
+  const isLiveLocation = geo.watching && !manualOrigin;
 
   const approved = useMemo(() => battles.filter((b) => b.status === 'aprovada'), [battles]);
 
@@ -67,8 +81,6 @@ export function MapPage() {
 
   const zoom = liveNav ? 17 : origin || selected ? 13 : withState.length > 0 ? 4.5 : 4;
 
-  const [fullscreen, setFullscreen] = useState(false);
-
   // Trava o scroll do fundo da página enquanto o mapa está em tela cheia.
   useEffect(() => {
     if (fullscreen) {
@@ -86,16 +98,21 @@ export function MapPage() {
   }
 
   function stopLiveNav() {
-    geo.stopWatching();
     setLiveNav(false);
     setCurrentStepIndex(0);
   }
 
   function handleSelect(battle: Battle) {
     setSelected(battle);
-    routing.clear();
     setPickingOrigin(false);
     stopLiveNav();
+    // Se já sabemos onde a pessoa está, traça a rota na hora — sem
+    // precisar de mais um toque em "Traçar rota".
+    if (origin) {
+      routing.calculate(origin, [battle.latitude, battle.longitude]);
+    } else {
+      routing.clear();
+    }
   }
 
   function handleTraceRoute() {
@@ -122,6 +139,14 @@ export function MapPage() {
     if (!routing.data) return;
     setCurrentStepIndex(0);
     setLiveNav(true);
+    if (!geo.watching) geo.startWatching();
+  }
+
+  // Botão "minha localização": liga o rastreamento contínuo (tempo real),
+  // não só uma leitura única — assim a bolinha azul se move com a pessoa
+  // enquanto ela estiver com o mapa aberto.
+  function handleEnableLiveLocation() {
+    setManualOrigin(null);
     geo.startWatching();
   }
 
@@ -144,7 +169,7 @@ export function MapPage() {
       distanceKm(geo.coords[0], geo.coords[1], selected.latitude, selected.longitude) * 1000;
     if (distanceToDestM < ARRIVAL_THRESHOLD_M) {
       stopLiveNav();
-      push({ type: 'success', title: '🎉 Você chegou!', description: selected.name });
+      push({ type: 'success', title: 'Você chegou!', description: selected.name });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.coords, liveNav]);
@@ -164,11 +189,18 @@ export function MapPage() {
               <SearchBar value={query} onChange={setQuery} placeholder="Buscar batalha, cidade ou bairro..." />
             </div>
             <button
-              onClick={() => geo.request()}
+              onClick={handleEnableLiveLocation}
               disabled={geo.status === 'loading'}
-              className="shrink-0 rounded-xl bg-signal-yellow px-4 py-3 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-signal-yellow px-4 py-3 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
             >
-              {geo.status === 'loading' ? '📍 Localizando...' : '📍 Encontrar perto de mim'}
+              {geo.status === 'loading' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isLiveLocation ? (
+                <Locate className="h-4 w-4" />
+              ) : (
+                <Compass className="h-4 w-4" />
+              )}
+              {geo.status === 'loading' ? 'Localizando...' : isLiveLocation ? 'Ao vivo' : 'Minha localização'}
             </button>
           </div>
           {(geo.status === 'denied' || geo.status === 'timeout') && (
@@ -194,6 +226,8 @@ export function MapPage() {
           zoom={zoom}
           userLocation={origin}
           userAccuracy={manualOrigin ? null : geo.accuracy}
+          userHeading={manualOrigin ? null : geo.heading}
+          userLive={isLiveLocation}
           route={routing.data?.coordinates}
           followUser={liveNav}
           onSelectBattle={handleSelect}
@@ -213,21 +247,24 @@ export function MapPage() {
           {!fullscreen && (
             <MapControlButton
               label={geo.status === 'loading' ? 'Localizando...' : 'Minha localização'}
-              icon="📍"
-              onClick={() => geo.request()}
+              icon={geo.status === 'loading' ? Loader2 : isLiveLocation ? Locate : Compass}
+              spin={geo.status === 'loading'}
+              active={isLiveLocation}
+              onClick={handleEnableLiveLocation}
               disabled={geo.status === 'loading'}
             />
           )}
           <MapControlButton
             label={fullscreen ? 'Sair da tela cheia' : 'Ver mapa em tela cheia'}
-            icon={fullscreen ? '⤢' : '⛶'}
+            icon={fullscreen ? Minimize2 : Maximize2}
             onClick={() => setFullscreen((v) => !v)}
           />
         </div>
 
         {pickingOrigin && (
-          <div className="absolute inset-x-3 top-16 z-[500] mx-auto max-w-sm rounded-xl border border-signal-yellow bg-ink-900/95 px-4 py-3 text-center text-sm font-semibold text-signal-yellow shadow-card backdrop-blur">
-            📍 Toque no mapa para marcar de onde você está saindo
+          <div className="absolute inset-x-3 top-16 z-[500] mx-auto flex max-w-sm items-center justify-center gap-2 rounded-xl border border-signal-yellow bg-ink-900/95 px-4 py-3 text-center text-sm font-semibold text-signal-yellow shadow-card backdrop-blur">
+            <Navigation className="h-4 w-4 shrink-0" />
+            Toque no mapa para marcar de onde você está saindo
           </div>
         )}
 
@@ -275,15 +312,19 @@ export function MapPage() {
 }
 
 function MapControlButton({
-  icon,
+  icon: Icon,
   label,
   onClick,
   disabled,
+  active,
+  spin,
 }: {
-  icon: string;
+  icon: typeof Compass;
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  active?: boolean;
+  spin?: boolean;
 }) {
   return (
     <button
@@ -291,9 +332,13 @@ function MapControlButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-11 w-11 items-center justify-center rounded-full border border-ink-600 bg-ink-800/95 text-lg text-chalk-100 shadow-card backdrop-blur transition-colors hover:border-signal-yellow disabled:opacity-60"
+      className={`flex h-11 w-11 items-center justify-center rounded-full border shadow-card backdrop-blur transition-colors disabled:opacity-60 ${
+        active
+          ? 'border-gps-blue bg-gps-blue/20 text-gps-blue'
+          : 'border-ink-600 bg-ink-800/95 text-chalk-100 hover:border-signal-yellow'
+      }`}
     >
-      {icon}
+      <Icon className={`h-5 w-5 ${spin ? 'animate-spin' : ''}`} strokeWidth={2} />
     </button>
   );
 }
@@ -325,7 +370,7 @@ function SelectedBattleCard({
           </p>
         </div>
         <button onClick={onClose} className="text-chalk-500 hover:text-chalk-100" aria-label="Fechar">
-          ✕
+          <X className="h-4 w-4" />
         </button>
       </div>
 
@@ -336,19 +381,28 @@ function SelectedBattleCard({
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-chalk-500">
-        <span>📅 {battle.date.split('-').reverse().join('/')}</span>
-        <span>⏰ {battle.time}</span>
-        {battle.participantsEstimate && <span>👥 ~{battle.participantsEstimate} pessoas</span>}
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-chalk-500">
+        <span className="flex items-center gap-1">
+          <Calendar className="h-3.5 w-3.5" /> {battle.date.split('-').reverse().join('/')}
+        </span>
+        <span className="flex items-center gap-1">
+          <Clock className="h-3.5 w-3.5" /> {battle.time}
+        </span>
+        {battle.participantsEstimate && (
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" /> ~{battle.participantsEstimate} pessoas
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex gap-2">
         <button
           onClick={onTraceRoute}
           disabled={routing}
-          className="flex-1 rounded-xl bg-gps-blue py-2.5 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gps-blue py-2.5 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
         >
-          {routing ? 'Calculando...' : '🧭 Traçar rota'}
+          {routing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+          {routing ? 'Calculando...' : 'Traçar rota'}
         </button>
         <button
           onClick={onView}

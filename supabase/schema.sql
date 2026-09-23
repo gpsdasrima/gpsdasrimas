@@ -115,6 +115,43 @@ create unique index if not exists reports_one_open_per_user_battle
   on public.reports (user_id, battle_id)
   where status = 'pendente';
 
+-- -----------------------------------------------------------------------------
+-- Tabela: audit_log
+-- Registro de toda ação de moderação (aprovar/rejeitar/remover batalha,
+-- promover admin, resolver denúncia) — só admins conseguem ler.
+-- -----------------------------------------------------------------------------
+create table if not exists public.audit_log (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles (id) on delete set null,
+  actor_name text check (actor_name is null or char_length(actor_name) <= 80),
+  action text not null check (char_length(action) <= 50),
+  target_type text not null check (char_length(target_type) <= 50),
+  target_id uuid,
+  target_label text check (target_label is null or char_length(target_label) <= 200),
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists audit_log_created_idx on public.audit_log (created_at desc);
+
+-- -----------------------------------------------------------------------------
+-- Tabela: chat_messages
+-- Chat público por batalha. user_name/user_avatar são copiados no envio
+-- (mesmo padrão de organizer_name em battles), assim o chat não depende
+-- de abrir a leitura de profiles para todo mundo.
+-- -----------------------------------------------------------------------------
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  battle_id uuid not null references public.battles (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  user_name text not null check (char_length(user_name) between 1 and 80),
+  user_avatar text check (user_avatar is null or char_length(user_avatar) <= 500),
+  message text not null check (char_length(message) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists chat_messages_battle_idx on public.chat_messages (battle_id, created_at);
+
 -- =============================================================================
 -- Funções auxiliares
 -- =============================================================================
@@ -133,6 +170,30 @@ as $$
     select 1 from public.profiles
     where id = auth.uid() and role = 'admin'
   );
+$$;
+
+-- Grava uma linha no log de auditoria. Não tem policy de insert própria —
+-- só é chamada de dentro de outras funções security definer (nunca
+-- diretamente pelo client), então ninguém consegue forjar uma entrada.
+create or replace function public.log_admin_action(
+  p_action text,
+  p_target_type text,
+  p_target_id uuid,
+  p_target_label text,
+  p_details jsonb default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor_name text;
+begin
+  select name into v_actor_name from public.profiles where id = auth.uid();
+  insert into public.audit_log (actor_id, actor_name, action, target_type, target_id, target_label, details)
+  values (auth.uid(), v_actor_name, p_action, p_target_type, p_target_id, p_target_label, p_details);
+end;
 $$;
 
 -- Promove outro usuário a administrador. Só pode ser chamada por quem já é
@@ -204,9 +265,21 @@ as $$
 begin
   -- auth.uid() nulo = chamada feita fora de uma sessão de usuário comum
   -- (SQL Editor, seed, service_role) — contextos de confiança do projeto.
-  -- Com uma sessão de usuário, só admin pode mudar o status.
-  if auth.uid() is not null and new.status is distinct from old.status and not public.is_admin() then
-    new.status := old.status;
+  -- Com uma sessão de usuário, só admin pode mudar o status — e quando
+  -- muda de verdade, fica registrado no log de auditoria.
+  if auth.uid() is not null and new.status is distinct from old.status then
+    if public.is_admin() then
+      perform public.log_admin_action(
+        case new.status
+          when 'aprovada' then 'aprovar_batalha'
+          when 'rejeitada' then 'rejeitar_batalha'
+          else 'alterar_status_batalha'
+        end,
+        'battle', new.id, new.name, jsonb_build_object('de', old.status, 'para', new.status)
+      );
+    else
+      new.status := old.status;
+    end if;
   end if;
   return new;
 end;
@@ -229,8 +302,14 @@ security definer
 set search_path = public
 as $$
 begin
-  if auth.uid() is not null and new.role is distinct from old.role and not public.is_admin() then
-    new.role := old.role;
+  if auth.uid() is not null and new.role is distinct from old.role then
+    if public.is_admin() then
+      perform public.log_admin_action(
+        'promover_admin', 'profile', new.id, new.name, jsonb_build_object('de', old.role, 'para', new.role)
+      );
+    else
+      new.role := old.role;
+    end if;
   end if;
   if auth.uid() is not null and new.email is distinct from old.email and not public.is_admin() then
     new.email := old.email;
@@ -295,6 +374,70 @@ create trigger battles_protect_restricted_fields
   before update on public.battles
   for each row execute function public.protect_battle_restricted_fields();
 
+-- Registra no log de auditoria toda remoção de batalha feita por um admin.
+create or replace function public.log_battle_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null and public.is_admin() then
+    perform public.log_admin_action('remover_batalha', 'battle', old.id, old.name, null);
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists battles_log_delete on public.battles;
+create trigger battles_log_delete
+  before delete on public.battles
+  for each row execute function public.log_battle_delete();
+
+-- Registra no log de auditoria toda denúncia resolvida por um admin.
+create or replace function public.log_report_resolve()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null and public.is_admin() and new.status = 'resolvida' and old.status is distinct from new.status then
+    perform public.log_admin_action('resolver_denuncia', 'report', new.id, new.reason, null);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists reports_log_resolve on public.reports;
+create trigger reports_log_resolve
+  before update on public.reports
+  for each row execute function public.log_report_resolve();
+
+-- Antiflood do chat: no máximo 1 mensagem a cada 3 segundos por pessoa.
+create or replace function public.enforce_chat_rate_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if exists (
+    select 1 from public.chat_messages
+    where user_id = new.user_id
+      and created_at > now() - interval '3 seconds'
+  ) then
+    raise exception 'Aguarde alguns segundos antes de enviar outra mensagem.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists chat_rate_limit on public.chat_messages;
+create trigger chat_rate_limit
+  before insert on public.chat_messages
+  for each row execute function public.enforce_chat_rate_limit();
+
 -- =============================================================================
 -- Row Level Security
 -- =============================================================================
@@ -303,6 +446,8 @@ alter table public.profiles enable row level security;
 alter table public.battles enable row level security;
 alter table public.favorites enable row level security;
 alter table public.reports enable row level security;
+alter table public.audit_log enable row level security;
+alter table public.chat_messages enable row level security;
 
 -- --- profiles ---------------------------------------------------------------
 drop policy if exists "profiles: ler o próprio perfil ou ser admin" on public.profiles;
@@ -367,6 +512,48 @@ create policy "reports: só admin resolve"
   on public.reports for update
   using (public.is_admin())
   with check (public.is_admin());
+
+-- --- audit_log ------------------------------------------------------------------
+drop policy if exists "audit_log: só admin lê" on public.audit_log;
+create policy "audit_log: só admin lê"
+  on public.audit_log for select
+  using (public.is_admin());
+-- Sem policy de insert: só a função log_admin_action (security definer)
+-- escreve aqui, então ninguém consegue forjar uma entrada no log.
+
+-- --- chat_messages ----------------------------------------------------------------
+drop policy if exists "chat: ler mensagens de batalhas visíveis" on public.chat_messages;
+create policy "chat: ler mensagens de batalhas visíveis"
+  on public.chat_messages for select
+  using (
+    exists (
+      select 1 from public.battles b
+      where b.id = battle_id
+        and (b.status = 'aprovada' or b.organizer_id = auth.uid() or public.is_admin())
+    )
+  );
+
+drop policy if exists "chat: enviar mensagem" on public.chat_messages;
+create policy "chat: enviar mensagem"
+  on public.chat_messages for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and exists (select 1 from public.battles b where b.id = battle_id and b.status = 'aprovada')
+  );
+
+drop policy if exists "chat: admin remove mensagem" on public.chat_messages;
+create policy "chat: admin remove mensagem"
+  on public.chat_messages for delete
+  using (public.is_admin());
+
+-- Ativa o Realtime na tabela de chat — as mensagens aparecem na hora para
+-- quem estiver com a batalha aberta, sem precisar recarregar a página.
+do $$
+begin
+  alter publication supabase_realtime add table public.chat_messages;
+exception when duplicate_object then null;
+end $$;
 
 -- =============================================================================
 -- Storage: fotos de perfil e banners de batalha

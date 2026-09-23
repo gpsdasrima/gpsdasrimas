@@ -130,7 +130,7 @@ export function RegisterBattle() {
         push({ type: 'error', title: 'Não foi possível salvar', description: 'Tente novamente em instantes.' });
         return;
       }
-      push({ type: 'success', title: '✏️ Batalha atualizada!' });
+      push({ type: 'success', title: 'Batalha atualizada!' });
       navigate(`/batalha/${editingBattle.slug}`);
       return;
     }
@@ -143,7 +143,7 @@ export function RegisterBattle() {
     }
     push({
       type: 'success',
-      title: '🔥 Batalha enviada!',
+      title: 'Batalha enviada!',
       description: 'Agora ela será analisada pela comunidade/moderação.',
     });
     navigate(`/batalha/${created.slug}`);
@@ -192,8 +192,7 @@ export function RegisterBattle() {
             bucket="battle-images"
             userId={currentUser!.id}
             shape="banner"
-            capture="environment"
-            hint="Opcional. Uma foto larga do local ou da edição anterior funciona bem como capa."
+            hint="Opcional. Escolha uma foto larga do local ou da edição anterior direto do seu aparelho."
           />
         </fieldset>
 

@@ -1,14 +1,4 @@
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMap,
-  useMapEvents,
-  CircleMarker,
-  Circle,
-  Polyline,
-} from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
 import type { Battle, BattleLiveState } from '../types';
@@ -21,6 +11,10 @@ interface Props {
   userLocation?: [number, number] | null;
   /** Raio de precisão do GPS em metros, exibido como um halo ao redor do usuário. */
   userAccuracy?: number | null;
+  /** Direção do movimento em graus, se disponível (mostra uma seta apontando pra onde a pessoa está indo). */
+  userHeading?: number | null;
+  /** true quando a posição está sendo atualizada continuamente (watchPosition) — mostra o pulso "ao vivo". */
+  userLive?: boolean;
   /** Geometria de uma rota real (lat/lng) a ser desenhada no mapa. */
   route?: [number, number][] | null;
   /** Modo navegação ao vivo: a câmera segue o usuário em vez de manter o enquadramento da rota. */
@@ -48,6 +42,23 @@ function pinIcon(color: string) {
     iconSize: [26, 26],
     iconAnchor: [13, 26],
     popupAnchor: [0, -26],
+  });
+}
+
+/** Bolinha azul "você está aqui", com pulso quando a posição está sendo seguida em tempo real. */
+function liveLocationIcon(live: boolean, heading: number | null) {
+  // Gira o conjunto inteiro (seta + bolinha) para a direção do movimento —
+  // a seta fica desenhada apontando "para cima" (norte / 0°) por padrão.
+  const rotation = heading !== null ? `transform: rotate(${heading}deg);` : '';
+  return L.divIcon({
+    className: '',
+    html: `<div class="gps-live-marker" style="${rotation}">
+        ${live ? '<div class="gps-live-ring"></div>' : ''}
+        ${heading !== null ? '<div class="gps-live-heading"></div>' : ''}
+        <div class="gps-live-dot"></div>
+      </div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
   });
 }
 
@@ -132,6 +143,8 @@ export function BattleMap({
   zoom = 12,
   userLocation,
   userAccuracy,
+  userHeading,
+  userLive,
   route,
   followUser,
   onSelectBattle,
@@ -185,13 +198,9 @@ export function BattleMap({
               pathOptions={{ color: '#3d8bff', fillColor: '#3d8bff', fillOpacity: 0.08, weight: 1 }}
             />
           )}
-          <CircleMarker
-            center={userLocation}
-            radius={8}
-            pathOptions={{ color: '#3d8bff', fillColor: '#3d8bff', fillOpacity: 0.7, weight: 2 }}
-          >
-            <Popup>Você está aqui</Popup>
-          </CircleMarker>
+          <Marker position={userLocation} icon={liveLocationIcon(!!userLive, userHeading ?? null)}>
+            <Popup>{userLive ? 'Você está aqui (ao vivo)' : 'Você está aqui'}</Popup>
+          </Marker>
         </>
       )}
 

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
+import { CalendarDays, Flame, Map, MapPin, Star, type LucideIcon } from 'lucide-react';
 import { useBattleStore } from '../store/battleStore';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useNow } from '../hooks/useNow';
@@ -77,15 +78,17 @@ export function Home() {
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
               <button
                 onClick={handleFindNearby}
-                className="w-full rounded-xl bg-signal-yellow px-6 py-3.5 text-sm font-bold text-ink-950 shadow-card transition hover:brightness-110 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-signal-yellow px-6 py-3.5 text-sm font-bold text-ink-950 shadow-card transition hover:brightness-110 sm:w-auto"
               >
-                📍 Batalhas perto de mim
+                <MapPin className="h-4 w-4" strokeWidth={2.25} />
+                Batalhas perto de mim
               </button>
               <Link
                 to="/mapa"
-                className="w-full rounded-xl border border-chalk-100/30 bg-ink-950/40 px-6 py-3.5 text-center text-sm font-bold text-chalk-100 backdrop-blur transition hover:border-gps-blue hover:text-gps-blue sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-chalk-100/30 bg-ink-950/40 px-6 py-3.5 text-center text-sm font-bold text-chalk-100 backdrop-blur transition hover:border-gps-blue hover:text-gps-blue sm:w-auto"
               >
-                🗺️ Explorar mapa
+                <Map className="h-4 w-4" strokeWidth={2.25} />
+                Explorar mapa
               </Link>
             </div>
             {geo.status === 'denied' && (
@@ -101,28 +104,28 @@ export function Home() {
         {/* Batalhas em destaque — resumo rápido por categoria */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatPill
-            icon="🔴"
+            icon={Flame}
             label="Ao vivo agora"
             count={aoVivoCount}
             tone="red"
             onClick={() => scrollToSection('ao-vivo')}
           />
           <StatPill
-            icon="🟢"
+            icon={MapPin}
             label="Perto de você"
             count={geo.coords ? pertoDeVoce.length : null}
             tone="green"
             onClick={geo.coords ? () => scrollToSection('perto-de-voce') : handleFindNearby}
           />
           <StatPill
-            icon="🔵"
+            icon={CalendarDays}
             label="Próximas batalhas"
             count={proximasAll.length}
             tone="blue"
             onClick={() => scrollToSection('proximas')}
           />
           <StatPill
-            icon="⭐"
+            icon={Star}
             label="Populares"
             count={popularesCount}
             tone="yellow"
@@ -131,7 +134,7 @@ export function Home() {
         </div>
 
         {geo.coords && (
-          <Section id="perto-de-voce" title="📍 Perto de você" emptyText="Nenhuma batalha próxima encontrada.">
+          <Section id="perto-de-voce" icon={MapPin} title="Perto de você" emptyText="Nenhuma batalha próxima encontrada.">
             {pertoDeVoce.map(({ battle, state, distance }) => (
               <BattleCard key={battle.id} battle={battle} liveState={state} distanceKm={distance} />
             ))}
@@ -146,19 +149,19 @@ export function Home() {
           </div>
         )}
 
-        <Section id="ao-vivo" title="🔥 Ao vivo agora" emptyText="Nenhuma batalha ao vivo neste momento.">
+        <Section id="ao-vivo" icon={Flame} title="Ao vivo agora" emptyText="Nenhuma batalha ao vivo neste momento.">
           {aoVivo.map(({ battle, state }) => (
             <BattleCard key={battle.id} battle={battle} liveState={state} />
           ))}
         </Section>
 
-        <Section id="proximas" title="📅 Próximas batalhas" emptyText="Nenhuma batalha agendada no momento.">
+        <Section id="proximas" icon={CalendarDays} title="Próximas batalhas" emptyText="Nenhuma batalha agendada no momento.">
           {proximas.map(({ battle, state }) => (
             <BattleCard key={battle.id} battle={battle} liveState={state} />
           ))}
         </Section>
 
-        <Section id="populares" title="⭐ Batalhas populares" emptyText="Ainda não há avaliações suficientes.">
+        <Section id="populares" icon={Star} title="Batalhas populares" emptyText="Ainda não há avaliações suficientes.">
           {populares.map(({ battle, state }) => (
             <BattleCard key={battle.id} battle={battle} liveState={state} />
           ))}
@@ -182,11 +185,13 @@ export function Home() {
 
 function Section({
   id,
+  icon: Icon,
   title,
   children,
   emptyText,
 }: {
   id?: string;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
   emptyText: string;
@@ -196,7 +201,10 @@ function Section({
 
   return (
     <section id={id} className="scroll-mt-20">
-      <h2 className="font-display text-xl tracking-wide text-chalk-100">{title}</h2>
+      <h2 className="flex items-center gap-2 font-display text-xl tracking-wide text-chalk-100">
+        <Icon className="h-5 w-5 text-signal-yellow" strokeWidth={2} />
+        {title}
+      </h2>
       {hasItems ? (
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
       ) : (
@@ -214,13 +222,13 @@ const STAT_TONE_CLASSES: Record<string, string> = {
 };
 
 function StatPill({
-  icon,
+  icon: Icon,
   label,
   count,
   tone,
   onClick,
 }: {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   count: number | null;
   tone: 'red' | 'green' | 'blue' | 'yellow';
@@ -232,7 +240,8 @@ function StatPill({
       className="flex flex-col items-start gap-1 rounded-2xl border border-ink-700 bg-ink-800/50 p-3.5 text-left transition-colors hover:border-ink-500 sm:p-4"
     >
       <span className={`flex items-center gap-1.5 text-xs font-semibold sm:text-sm ${STAT_TONE_CLASSES[tone]}`}>
-        {icon} {label}
+        <Icon className="h-3.5 w-3.5" strokeWidth={2.25} />
+        {label}
       </span>
       <span className="font-display text-lg text-chalk-100">
         {count === null ? '—' : count}

@@ -35,11 +35,27 @@ export type ManeuverModifier =
   | 'left'
   | 'sharp left';
 
+/** Chave semântica da manobra — a UI mapeia isso para um ícone de verdade (lucide-react). */
+export type ManeuverIconKey =
+  | 'depart'
+  | 'arrive'
+  | 'roundabout'
+  | 'straight'
+  | 'left'
+  | 'sharp-left'
+  | 'slight-left'
+  | 'right'
+  | 'sharp-right'
+  | 'slight-right'
+  | 'uturn'
+  | 'fork'
+  | 'ramp';
+
 export interface RouteStep {
   /** Instrução já traduzida e pronta para exibir, ex.: "Vire à esquerda na Rua X". */
   instruction: string;
-  /** Ícone (emoji) representando a manobra. */
-  icon: string;
+  /** Chave do ícone da manobra (ver ManeuverIconKey) — não é emoji nem HTML. */
+  icon: ManeuverIconKey;
   distanceM: number;
   durationS: number;
   /** Ponto [lat, lng] onde a manobra acontece — usado para navegação ao vivo. */
@@ -73,15 +89,15 @@ const MODIFIER_LABEL: Record<ManeuverModifier, string> = {
   'sharp left': 'Vire acentuadamente à esquerda',
 };
 
-const MODIFIER_ICON: Record<ManeuverModifier, string> = {
-  uturn: '↩️',
-  'sharp right': '↱',
-  right: '➡️',
-  'slight right': '↗️',
-  straight: '⬆️',
-  'slight left': '↖️',
-  left: '⬅️',
-  'sharp left': '↰',
+const MODIFIER_ICON: Record<ManeuverModifier, ManeuverIconKey> = {
+  uturn: 'uturn',
+  'sharp right': 'sharp-right',
+  right: 'right',
+  'slight right': 'slight-right',
+  straight: 'straight',
+  'slight left': 'slight-left',
+  left: 'left',
+  'sharp left': 'sharp-left',
 };
 
 interface OsrmManeuver {
@@ -98,37 +114,37 @@ interface OsrmStep {
   name?: string;
 }
 
-function buildInstruction(step: OsrmStep): { instruction: string; icon: string } {
+function buildInstruction(step: OsrmStep): { instruction: string; icon: ManeuverIconKey } {
   const { maneuver, name } = step;
   const street = name ? ` na ${name}` : '';
   const modifierLabel = maneuver.modifier ? MODIFIER_LABEL[maneuver.modifier] : 'Continue';
-  const modifierIcon = maneuver.modifier ? MODIFIER_ICON[maneuver.modifier] : '⬆️';
+  const modifierIcon: ManeuverIconKey = maneuver.modifier ? MODIFIER_ICON[maneuver.modifier] : 'straight';
 
   switch (maneuver.type) {
     case 'depart':
-      return { instruction: `Siga em frente${street}`, icon: '📍' };
+      return { instruction: `Siga em frente${street}`, icon: 'depart' };
     case 'arrive':
-      return { instruction: 'Você chegou ao destino', icon: '🏁' };
+      return { instruction: 'Você chegou ao destino', icon: 'arrive' };
     case 'roundabout':
     case 'rotary':
     case 'roundabout turn':
       return {
         instruction: `Entre na rotatória${maneuver.exit ? ` e saia na ${maneuver.exit}ª saída` : ''}${street}`,
-        icon: '🔄',
+        icon: 'roundabout',
       };
     case 'merge':
       return { instruction: `Entre${street}`, icon: modifierIcon };
     case 'on ramp':
-      return { instruction: `Pegue a rampa de acesso${street}`, icon: '↗️' };
+      return { instruction: `Pegue a rampa de acesso${street}`, icon: 'ramp' };
     case 'off ramp':
-      return { instruction: `Saia pela rampa${street}`, icon: '↘️' };
+      return { instruction: `Saia pela rampa${street}`, icon: 'ramp' };
     case 'fork':
-      return { instruction: `${modifierLabel}${street} (bifurcação)`, icon: modifierIcon };
+      return { instruction: `${modifierLabel}${street} (bifurcação)`, icon: 'fork' };
     case 'end of road':
       return { instruction: `${modifierLabel}${street} (fim da via)`, icon: modifierIcon };
     case 'new name':
     case 'continue':
-      return { instruction: `Continue${street}`, icon: '⬆️' };
+      return { instruction: `Continue${street}`, icon: 'straight' };
     case 'turn':
     default:
       return { instruction: `${modifierLabel}${street}`, icon: modifierIcon };

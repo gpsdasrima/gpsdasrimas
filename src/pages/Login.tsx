@@ -26,7 +26,7 @@ export function Login() {
       setError(result.error ?? 'Erro ao entrar.');
       return;
     }
-    push({ type: 'success', title: `E aí, MC! 🎤`, description: 'Login realizado com sucesso.' });
+    push({ type: 'success', title: `E aí, MC!`, description: 'Login realizado com sucesso.' });
     navigate(from, { replace: true });
   }
 

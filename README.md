@@ -34,10 +34,11 @@ com autenticação e banco de dados reais via **Supabase**.
 | UI              | React 19 + TypeScript                                           |
 | Estilo          | Tailwind CSS v4 (config CSS-first, sem `tailwind.config.js`)    |
 | Roteamento      | React Router 7                                                   |
-| Backend/banco   | **Supabase** (Postgres + Auth + Row Level Security)              |
+| Backend/banco   | **Supabase** (Postgres + Auth + Row Level Security + Realtime)   |
 | Estado global   | Zustand (cache client-side dos dados vindos do Supabase)         |
 | Mapa            | Leaflet + React-Leaflet, tiles gratuitos Esri (sem chave)         |
 | Rotas reais     | OSRM (Open Source Routing Machine, gratuito, sem chave)           |
+| Ícones          | lucide-react                                                     |
 | PWA             | `vite-plugin-pwa` (manifest + service worker automáticos)        |
 | Lint            | oxlint                                                           |
 
@@ -98,10 +99,14 @@ existe um banco de verdade para conversar. Configure o Supabase primeiro
    assim uma conta criada já entra direto, sem precisar clicar em link de
    e-mail. Em produção, deixe a confirmação ativada.
 7. Se o seu projeto **já existia** antes desta versão (ou seja, você já
-   rodou um `schema.sql` mais antigo), rode também
-   [`supabase/hardening.sql`](./supabase/hardening.sql) — ele adiciona os
-   reforços de segurança mais recentes sem apagar nada. Veja a seção
-   [10. Segurança](#10-segurança) para o que exatamente ele corrige.
+   rodou um `schema.sql` mais antigo), rode também, nessa ordem:
+   - [`supabase/hardening.sql`](./supabase/hardening.sql) — reforços de
+     segurança (limites de tamanho, proteção de campos sensíveis).
+   - [`supabase/launch-updates.sql`](./supabase/launch-updates.sql) — chat
+     em tempo real por batalha e log de auditoria do painel admin.
+8. Depois de rodar `launch-updates.sql`, ative o Realtime na tabela do
+   chat: **Database → Replication**, ligue o toggle em `chat_messages`
+   (o próprio script já tenta ativar isso sozinho, mas vale conferir).
 
 Pronto — o app já fala com um banco de dados Postgres real, com autenticação
 de verdade.
@@ -230,30 +235,39 @@ Google Directions, GraphHopper etc.).
 
 - **Identidade visual própria**: logo, mascote, ícones de navegação e tela
   de carregamento usando as artes originais do projeto (`public/brand/` e
-  `public/icons/`), tema grafite escuro com destaque amarelo neon.
+  `public/icons/`), tema grafite escuro com destaque amarelo neon, ícones
+  [lucide-react](https://lucide.dev) em todo o resto da interface (nada de
+  emoji fazendo as vezes de ícone).
 - **Home**: hero com o mascote, indicadores "Ao vivo agora / Perto de você
   / Próximas / Populares" com contagem em tempo real, seções de destaque.
-- **Mapa nacional**: pins por status (🔴 ao vivo, 🟢 hoje, 🔵 próxima,
-  ⚪ encerrada), rota real desenhada no mapa com instruções passo a passo,
-  modo tela cheia.
+- **Mapa nacional**: localização em tempo real (bolinha azul "ao vivo" que
+  acompanha a pessoa se movendo, com seta de direção quando disponível),
+  pins por status, rota real desenhada no mapa com instruções passo a
+  passo, rota traçada automaticamente ao tocar numa batalha (se a
+  localização já for conhecida), modo tela cheia.
 - **Busca e filtros**: por nome/cidade/bairro, com sidebar de filtros no
   desktop (tipo de batalha + ordenação) e chips no mobile.
 - **Página de detalhes**: descrição, mini-mapa com rota e navegação ao
   vivo, banner da batalha, redes sociais, favoritar, compartilhar (Web
-  Share API), denunciar, editar (dono/admin).
-- **Cadastro de batalha**: local marcado no mapa, banner enviado direto do
-  aparelho (câmera ou galeria), frequência (semanal/quinzenal/mensal/
-  único), validação de campos. Toda batalha nova entra como **pendente**
-  até ser aprovada por um admin.
-- **Foto de perfil real**: tire uma selfie na hora ou escolha da galeria —
-  o upload vai para o Supabase Storage e a URL pública fica salva no
+  Share API), denunciar, editar (dono/admin) — e um **chat em tempo real**
+  aberto para qualquer pessoa comentar, com selo "Criador" destacando as
+  mensagens de quem organiza a batalha.
+- **Cadastro de batalha**: local marcado no mapa, banner escolhido da
+  galeria do aparelho, frequência (semanal/quinzenal/mensal/único),
+  validação de campos. Toda batalha nova entra como **pendente** até ser
+  aprovada por um admin.
+- **Foto de perfil real**: escolha uma foto da galeria do aparelho — o
+  upload vai para o Supabase Storage e a URL pública fica salva no
   perfil, sem precisar colar link nenhum.
 - **Autenticação real**: criar conta, login, logout, editar perfil — tudo
   via Supabase Auth, com sessão persistida entre recarregamentos.
 - **Favoritos**: favoritar/desfavoritar, página dedicada.
-- **Painel administrativo**: dashboard com estatísticas, aprovar/rejeitar/
-  editar/remover batalhas, listar usuários, promover admins, resolver
-  denúncias.
+- **Painel administrativo completo**: dashboard com estatísticas,
+  aprovar/rejeitar/editar/remover batalhas, listar usuários (e-mails
+  parcialmente ocultos com asteriscos, mesmo para admin), promover
+  admins, resolver denúncias, e uma aba de **Atividade** com o histórico
+  de toda ação de moderação (quem fez o quê e quando) — registrado
+  automaticamente pelo banco, impossível de forjar ou apagar pelo app.
 - **PWA**: instalável, tema escuro nas barras do navegador, splash screen
   própria.
 - **Responsivo mobile-first**, com FAB de "Cadastrar" flutuante no
@@ -299,11 +313,28 @@ dois lados: banco de dados (Supabase/Postgres) e aplicação (React/HTTP).
   arquivo gigante).
 - **`promote_to_admin()`** é a única forma de promover alguém a admin
   depois do primeiro — e só funciona se quem chama já for admin.
+- **Log de auditoria** (`audit_log`): toda aprovação, rejeição, remoção de
+  batalha, promoção a admin e resolução de denúncia fica registrada
+  automaticamente (quem fez, quando, o quê). Só admins conseguem ler essa
+  tabela, e ninguém consegue inserir uma linha nela na mão — só uma
+  função interna do banco escreve ali, então o log não pode ser forjado
+  nem manipulado pelo app.
+- **E-mails mascarados até para admin**: o painel administrativo mostra
+  os e-mails dos usuários parcialmente ocultos com asteriscos
+  (`jo***@gmail.com`) — reduz exposição em prints de tela ou
+  compartilhamento de vídeo, mesmo que a pessoa logada seja admin.
+- **Chat protegido por RLS**: só é possível enviar mensagem em batalha
+  aprovada, e cada pessoa só posta como si mesma (o app copia seu próprio
+  nome/foto no envio — o servidor não confia em nada que o navegador
+  mande além do texto da mensagem). Limite de 1 mensagem a cada 3
+  segundos por pessoa (antiflood, aplicado pelo banco), 500 caracteres
+  por mensagem, e um admin pode apagar qualquer mensagem para moderação.
 
 Se você já rodou `supabase/schema.sql` antes (como no seu projeto), rode
-[`supabase/hardening.sql`](./supabase/hardening.sql) uma vez para aplicar
-essas proteções sem precisar recriar nada. Instalações novas já recebem
-tudo isso direto do `schema.sql` atualizado.
+[`supabase/hardening.sql`](./supabase/hardening.sql) e depois
+[`supabase/launch-updates.sql`](./supabase/launch-updates.sql) para
+aplicar essas proteções sem precisar recriar nada. Instalações novas já
+recebem tudo isso direto do `schema.sql` atualizado.
 
 ### Aplicação / HTTP
 

@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { Menu, X } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { MaskIcon } from './MaskIcon';
 import { BRAND, ICONS } from '../constants/assets';
@@ -87,7 +88,7 @@ export function Header() {
           aria-label="Abrir menu"
           aria-expanded={menuOpen}
         >
-          {menuOpen ? '✕' : '☰'}
+          {menuOpen ? <X className="h-5 w-5" strokeWidth={2} /> : <Menu className="h-5 w-5" strokeWidth={2} />}
         </button>
       </div>
 

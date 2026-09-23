@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Calendar, Clock, MapPin } from 'lucide-react';
 import type { Battle } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { MaskIcon } from './MaskIcon';
@@ -31,7 +32,7 @@ export function BattleCard({ battle, liveState, distanceKm }: Props) {
     await toggleFavorite(currentUser.id, battle.id);
     push({
       type: 'success',
-      title: wasFavorited ? 'Removida dos favoritos' : 'Adicionada aos favoritos ⭐',
+      title: wasFavorited ? 'Removida dos favoritos' : 'Adicionada aos favoritos',
     });
   }
 
@@ -68,12 +69,17 @@ export function BattleCard({ battle, liveState, distanceKm }: Props) {
 
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <h3 className="font-display text-base tracking-wide text-chalk-100">{battle.name}</h3>
-        <p className="text-sm text-chalk-300">
-          📍 {battle.neighborhood}, {battle.city} - {battle.state}
+        <p className="flex items-center gap-1 text-sm text-chalk-300">
+          <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          {battle.neighborhood}, {battle.city} - {battle.state}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-chalk-500">
-          <span>📅 {formatDateBR(battle.date)}</span>
-          <span>⏰ {battle.time}</span>
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" strokeWidth={2} /> {formatDateBR(battle.date)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5" strokeWidth={2} /> {battle.time}
+          </span>
           {typeof distanceKm === 'number' && (
             <span className="font-semibold text-gps-blue">{formatDistance(distanceKm)}</span>
           )}

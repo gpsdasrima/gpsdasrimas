@@ -4,6 +4,8 @@ interface GeoState {
   coords: [number, number] | null;
   /** Raio de precisão em metros informado pelo dispositivo. */
   accuracy: number | null;
+  /** Direção do movimento em graus (0 = norte), quando o aparelho consegue informar. */
+  heading: number | null;
   status: 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported' | 'timeout';
   error?: string;
   /** Se o navegador está atualizando a posição continuamente (modo "ao vivo"). */
@@ -30,6 +32,7 @@ export function useGeolocation() {
   const [state, setState] = useState<GeoState>({
     coords: null,
     accuracy: null,
+    heading: null,
     status: 'idle',
     watching: false,
   });
@@ -56,6 +59,7 @@ export function useGeolocation() {
           ...s,
           coords: [pos.coords.latitude, pos.coords.longitude],
           accuracy: pos.coords.accuracy,
+          heading: pos.coords.heading,
           status: 'granted',
           error: undefined,
         }));
@@ -68,7 +72,7 @@ export function useGeolocation() {
     );
   }, []);
 
-  /** Liga o rastreamento contínuo (bolinha "ao vivo" se movendo no mapa). */
+  /** Liga o rastreamento contínuo (bolinha "ao vivo" se movendo no mapa, em tempo real). */
   const startWatching = useCallback(() => {
     if (!('geolocation' in navigator)) {
       setState((s) => ({ ...s, status: 'unsupported', error: 'Geolocalização não suportada neste navegador.' }));
@@ -81,6 +85,7 @@ export function useGeolocation() {
           ...s,
           coords: [pos.coords.latitude, pos.coords.longitude],
           accuracy: pos.coords.accuracy,
+          heading: pos.coords.heading,
           status: 'granted',
           watching: true,
           error: undefined,

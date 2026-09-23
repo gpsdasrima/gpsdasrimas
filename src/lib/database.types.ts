@@ -131,6 +131,54 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['reports']['Insert']>;
         Relationships: [];
       };
+      audit_log: {
+        Row: {
+          id: string;
+          actor_id: string | null;
+          actor_name: string | null;
+          action: string;
+          target_type: string;
+          target_id: string | null;
+          target_label: string | null;
+          details: Record<string, unknown> | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          actor_id?: string | null;
+          actor_name?: string | null;
+          action: string;
+          target_type: string;
+          target_id?: string | null;
+          target_label?: string | null;
+          details?: Record<string, unknown> | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['audit_log']['Insert']>;
+        Relationships: [];
+      };
+      chat_messages: {
+        Row: {
+          id: string;
+          battle_id: string;
+          user_id: string;
+          user_name: string;
+          user_avatar: string | null;
+          message: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          battle_id: string;
+          user_id: string;
+          user_name: string;
+          user_avatar?: string | null;
+          message: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['chat_messages']['Insert']>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -140,6 +188,16 @@ export interface Database {
       };
       promote_to_admin: {
         Args: { target_email: string };
+        Returns: undefined;
+      };
+      log_admin_action: {
+        Args: {
+          p_action: string;
+          p_target_type: string;
+          p_target_id: string | null;
+          p_target_label: string | null;
+          p_details?: Record<string, unknown> | null;
+        };
         Returns: undefined;
       };
     };

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { SearchX } from 'lucide-react';
 import { useBattleStore } from '../store/battleStore';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useNow } from '../hooks/useNow';
@@ -10,9 +11,9 @@ import { BattleCard } from '../components/BattleCard';
 type TypeFilter = 'todas' | 'ao_vivo' | 'hoje' | 'proximas' | 'gratuitas';
 type SortBy = 'data_mais_proxima' | 'mais_proximas' | 'mais_populares';
 
-const TYPE_OPTIONS: { key: TypeFilter; label: string }[] = [
+const TYPE_OPTIONS: { key: TypeFilter; label: string; dot?: string }[] = [
   { key: 'todas', label: 'Todas' },
-  { key: 'ao_vivo', label: '🔴 Ao vivo' },
+  { key: 'ao_vivo', label: 'Ao vivo', dot: '#ff3b5c' },
   { key: 'hoje', label: 'Hoje' },
   { key: 'proximas', label: 'Próximas' },
   { key: 'gratuitas', label: 'Gratuitas' },
@@ -102,6 +103,7 @@ export function BattlesList() {
                 : 'border-ink-600 text-chalk-300 hover:border-ink-500'
             }`}
           >
+            {opt.dot && <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: opt.dot }} />}
             {opt.label}
           </button>
         ))}
@@ -120,7 +122,7 @@ export function BattlesList() {
         <div>
           {filteredList.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-ink-600 p-8 text-center">
-              <p className="text-3xl">🔍</p>
+              <SearchX className="mx-auto h-8 w-8 text-chalk-600" strokeWidth={1.5} />
               <p className="mt-2 text-sm text-chalk-300">Nenhuma batalha encontrada com esses filtros.</p>
             </div>
           ) : (
@@ -153,7 +155,12 @@ export function BattlesList() {
                     onChange={() => setTypeFilter(opt.key)}
                     className="accent-signal-yellow"
                   />
-                  <span className={typeFilter === opt.key ? 'font-semibold text-chalk-100' : ''}>
+                  <span
+                    className={`flex items-center gap-1.5 ${typeFilter === opt.key ? 'font-semibold text-chalk-100' : ''}`}
+                  >
+                    {opt.dot && (
+                      <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: opt.dot }} />
+                    )}
                     {opt.label}
                   </span>
                 </label>

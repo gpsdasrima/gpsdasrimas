@@ -36,13 +36,13 @@ export function Signup() {
     if (result.needsEmailConfirmation) {
       push({
         type: 'info',
-        title: 'Quase lá! 📬',
+        title: 'Quase lá!',
         description: 'Enviamos um link de confirmação para o seu e-mail. Confirme para poder entrar.',
       });
       navigate('/entrar');
       return;
     }
-    push({ type: 'success', title: 'Conta criada! 🔥', description: `Bem-vindo(a), ${name.split(' ')[0]}.` });
+    push({ type: 'success', title: 'Conta criada!', description: `Bem-vindo(a), ${name.split(' ')[0]}.` });
     navigate('/');
   }
 

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useBattleStore } from '../store/battleStore';
 import { useToastStore } from '../store/toastStore';
 import { TextField } from '../components/FormField';
-import { CameraCaptureField } from '../components/CameraCaptureField';
+import { ImageUploadField } from '../components/ImageUploadField';
 import { MaskIcon } from '../components/MaskIcon';
 import { BattleCard } from '../components/BattleCard';
 import { useNow } from '../hooks/useNow';
@@ -67,12 +68,14 @@ export function Profile() {
 
         {editing ? (
           <div className="w-full flex-1 space-y-3">
-            <CameraCaptureField
+            <ImageUploadField
               label="Foto de perfil"
               value={avatar}
               onChange={setAvatar}
+              bucket="avatars"
               userId={currentUser.id}
-              hint="A câmera abre direto — não dá pra escolher uma foto já salva no aparelho."
+              shape="circle"
+              hint="Escolha uma foto da galeria do seu aparelho."
             />
             <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
             <TextField label="Cidade" value={city} onChange={(e) => setCity(e.target.value)} />
@@ -99,7 +102,11 @@ export function Profile() {
           <div className="flex-1 text-center sm:text-left">
             <h1 className="font-display text-2xl tracking-wide text-chalk-100">{currentUser.name}</h1>
             <p className="mt-0.5 text-sm text-chalk-300">{currentUser.email}</p>
-            {currentUser.city && <p className="text-sm text-chalk-500">📍 {currentUser.city}</p>}
+            {currentUser.city && (
+              <p className="flex items-center justify-center gap-1 text-sm text-chalk-500 sm:justify-start">
+                <MapPin className="h-3.5 w-3.5" strokeWidth={2} /> {currentUser.city}
+              </p>
+            )}
             {currentUser.role === 'admin' && (
               <span className="mt-2 inline-block rounded-full bg-gps-blue/15 px-3 py-1 text-xs font-semibold text-gps-blue">
                 Administrador

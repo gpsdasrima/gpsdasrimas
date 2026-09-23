@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Calendar,
+  Clock,
+  Loader2,
+  MapPin,
+  Navigation,
+  Pencil,
+  Share2,
+  Star,
+} from 'lucide-react';
 import { useBattleStore } from '../store/battleStore';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
@@ -14,6 +25,7 @@ import { BattleMap } from '../components/BattleMap';
 import { BattleCard } from '../components/BattleCard';
 import { RouteInfoPanel } from '../components/RouteInfoPanel';
 import { TurnByTurnPanel } from '../components/TurnByTurnPanel';
+import { BattleChat } from '../components/BattleChat';
 import { MaskIcon } from '../components/MaskIcon';
 import { BRAND, ICONS } from '../constants/assets';
 import type { ReportReason } from '../types';
@@ -70,7 +82,7 @@ export function BattleDetail() {
       geo.stopWatching();
       setLiveNav(false);
       setCurrentStepIndex(0);
-      push({ type: 'success', title: '🎉 Você chegou!' });
+      push({ type: 'success', title: 'Você chegou!' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.coords, liveNav, destinationCoords]);
@@ -112,7 +124,7 @@ export function BattleDetail() {
     }
     const wasFavorited = favorited;
     await toggleFavorite(currentUser.id, currentBattle.id);
-    push({ type: 'success', title: wasFavorited ? 'Removida dos favoritos' : 'Adicionada aos favoritos ⭐' });
+    push({ type: 'success', title: wasFavorited ? 'Removida dos favoritos' : 'Adicionada aos favoritos' });
   }
 
   async function handleShare() {
@@ -195,8 +207,16 @@ export function BattleDetail() {
             <h1 className="mt-2 font-display text-3xl tracking-wide text-chalk-100 sm:text-4xl">
               {battle.name}
             </h1>
-            <p className="mt-1 text-sm text-chalk-300">
-              📍 {battle.city} - {battle.state} &nbsp;•&nbsp; 📅 {formatDateBR(battle.date)} &nbsp;•&nbsp; ⏰ {battle.time}
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-chalk-300">
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" strokeWidth={2} /> {battle.city} - {battle.state}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" strokeWidth={2} /> {formatDateBR(battle.date)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" strokeWidth={2} /> {battle.time}
+              </span>
             </p>
           </div>
         </div>
@@ -205,8 +225,9 @@ export function BattleDetail() {
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {battle.isDemo && (
-            <div className="rounded-xl border border-ink-600 bg-ink-800 px-4 py-2 text-xs text-chalk-500">
-              ⚠️ Batalha de exemplo, criada apenas para demonstração do aplicativo.
+            <div className="flex items-center gap-2 rounded-xl border border-ink-600 bg-ink-800 px-4 py-2 text-xs text-chalk-500">
+              <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={2} />
+              Batalha de exemplo, criada apenas para demonstração do aplicativo.
             </div>
           )}
 
@@ -219,7 +240,18 @@ export function BattleDetail() {
             <InfoItem label="Organizador" value={battle.organizerName} />
             <InfoItem label="Frequência" value={frequencyLabel(battle.frequency)} />
             <InfoItem label="Edições" value={String(battle.editionsCount)} />
-            <InfoItem label="Avaliação" value={battle.rating > 0 ? `⭐ ${battle.rating.toFixed(1)}` : '—'} />
+            <InfoItem
+              label="Avaliação"
+              value={
+                battle.rating > 0 ? (
+                  <span className="flex items-center gap-1">
+                    <Star className="h-3.5 w-3.5 fill-signal-yellow text-signal-yellow" /> {battle.rating.toFixed(1)}
+                  </span>
+                ) : (
+                  '—'
+                )
+              }
+            />
             {battle.participantsEstimate && (
               <InfoItem label="Participantes" value={`~${battle.participantsEstimate}`} />
             )}
@@ -231,8 +263,9 @@ export function BattleDetail() {
             <p className="mt-1 text-sm text-chalk-300">{battle.address}</p>
 
             {pickingOrigin && (
-              <p className="mt-2 rounded-lg border border-signal-yellow bg-ink-900/80 px-3 py-2 text-center text-xs font-semibold text-signal-yellow">
-                📍 Toque no mapa abaixo para marcar de onde você está saindo
+              <p className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-signal-yellow bg-ink-900/80 px-3 py-2 text-center text-xs font-semibold text-signal-yellow">
+                <Navigation className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                Toque no mapa abaixo para marcar de onde você está saindo
               </p>
             )}
 
@@ -274,9 +307,10 @@ export function BattleDetail() {
                 {geo.status === 'denied' && !origin && !pickingOrigin && (
                   <button
                     onClick={handlePickOriginOnMap}
-                    className="w-full rounded-xl border border-ink-600 py-2.5 text-xs font-bold text-chalk-100 hover:border-signal-yellow"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-ink-600 py-2.5 text-xs font-bold text-chalk-100 hover:border-signal-yellow"
                   >
-                    📍 Marcar minha localização no mapa manualmente
+                    <MapPin className="h-3.5 w-3.5" strokeWidth={2} />
+                    Marcar minha localização no mapa manualmente
                   </button>
                 )}
               </div>
@@ -296,6 +330,8 @@ export function BattleDetail() {
             </section>
           )}
 
+          <BattleChat battleId={currentBattle.id} organizerId={currentBattle.organizerId} />
+
           {related.length > 0 && (
             <section>
               <h2 className="font-display text-lg text-chalk-100">Batalhas relacionadas</h2>
@@ -312,9 +348,14 @@ export function BattleDetail() {
           <button
             onClick={handleDirections}
             disabled={geo.status === 'loading'}
-            className="w-full rounded-xl bg-gps-blue py-3 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gps-blue py-3 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
           >
-            {geo.status === 'loading' ? '📍 Localizando...' : '📍 Como chegar'}
+            {geo.status === 'loading' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Navigation className="h-4 w-4" strokeWidth={2.25} />
+            )}
+            {geo.status === 'loading' ? 'Localizando...' : 'Como chegar'}
           </button>
           <button
             onClick={handleFavorite}
@@ -329,23 +370,26 @@ export function BattleDetail() {
           </button>
           <button
             onClick={handleShare}
-            className="w-full rounded-xl border border-ink-600 py-3 text-sm font-bold text-chalk-100 hover:border-gps-blue"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-ink-600 py-3 text-sm font-bold text-chalk-100 hover:border-gps-blue"
           >
-            ↗ Compartilhar
+            <Share2 className="h-4 w-4" strokeWidth={2} />
+            Compartilhar
           </button>
           {canEdit && (
             <button
               onClick={() => navigate(`/cadastrar?editar=${battle.id}`)}
-              className="w-full rounded-xl border border-ink-600 py-3 text-sm font-bold text-chalk-100 hover:border-signal-green"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-ink-600 py-3 text-sm font-bold text-chalk-100 hover:border-signal-green"
             >
-              ✏️ Editar informações
+              <Pencil className="h-4 w-4" strokeWidth={2} />
+              Editar informações
             </button>
           )}
           <button
             onClick={() => setReportOpen(true)}
-            className="w-full rounded-xl py-3 text-sm font-semibold text-signal-red/90 hover:bg-signal-red/10"
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-signal-red/90 hover:bg-signal-red/10"
           >
-            ⚠️ Denunciar informação
+            <AlertTriangle className="h-4 w-4" strokeWidth={2} />
+            Denunciar informação
           </button>
         </aside>
       </div>
@@ -357,7 +401,7 @@ export function BattleDetail() {
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-ink-700 bg-ink-800/60 p-3">
       <p className="text-[11px] uppercase tracking-wide text-chalk-500">{label}</p>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { ImagePlus, Loader2 } from 'lucide-react';
 import { uploadImage, type StorageBucket } from '../lib/uploadImage';
 import { useToastStore } from '../store/toastStore';
 import { MaskIcon } from './MaskIcon';
@@ -11,21 +12,10 @@ interface Props {
   bucket: StorageBucket;
   userId: string;
   shape?: 'circle' | 'banner';
-  /** Sugere qual câmera abrir no celular: 'user' = frontal (selfie), 'environment' = traseira. */
-  capture?: 'user' | 'environment';
   hint?: string;
 }
 
-export function ImageUploadField({
-  label,
-  value,
-  onChange,
-  bucket,
-  userId,
-  shape = 'banner',
-  capture,
-  hint,
-}: Props) {
+export function ImageUploadField({ label, value, onChange, bucket, userId, shape = 'banner', hint }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -62,13 +52,7 @@ export function ImageUploadField({
     <div>
       <span className="text-sm font-medium text-chalk-300">{label}</span>
 
-      <div
-        className={
-          shape === 'circle'
-            ? 'mt-1.5 flex items-center gap-4'
-            : 'mt-1.5 space-y-2'
-        }
-      >
+      <div className={shape === 'circle' ? 'mt-1.5 flex items-center gap-4' : 'mt-1.5 space-y-2'}>
         <div
           className={
             shape === 'circle'
@@ -79,17 +63,17 @@ export function ImageUploadField({
           {displaySrc ? (
             <img src={displaySrc} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-3xl text-chalk-600">
+            <div className="flex h-full w-full items-center justify-center text-chalk-600">
               {shape === 'circle' ? (
                 <MaskIcon src={ICONS.profile} className="h-8 w-8" />
               ) : (
-                '🖼️'
+                <ImagePlus className="h-8 w-8" strokeWidth={1.5} />
               )}
             </div>
           )}
           {uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink-950/70">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-ink-600 border-t-signal-yellow" />
+              <Loader2 className="h-5 w-5 animate-spin text-signal-yellow" />
             </div>
           )}
         </div>
@@ -98,22 +82,16 @@ export function ImageUploadField({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="rounded-xl border border-ink-600 px-4 py-2 text-sm font-semibold text-chalk-100 hover:border-signal-yellow disabled:opacity-60"
+          className="flex items-center gap-2 rounded-xl border border-ink-600 px-4 py-2 text-sm font-semibold text-chalk-100 hover:border-signal-yellow disabled:opacity-60"
         >
-          {uploading ? 'Enviando...' : displaySrc ? '📷 Trocar foto' : '📷 Tirar foto ou escolher da galeria'}
+          <ImagePlus className="h-4 w-4" strokeWidth={2} />
+          {uploading ? 'Enviando...' : displaySrc ? 'Trocar foto' : 'Escolher da galeria'}
         </button>
       </div>
 
       {hint && <p className="mt-1 text-xs text-chalk-500">{hint}</p>}
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture={capture}
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
     </div>
   );
 }

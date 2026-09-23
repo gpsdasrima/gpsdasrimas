@@ -1,9 +1,16 @@
+import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import { useToastStore } from '../store/toastStore';
 
-const ICONS: Record<string, string> = {
-  success: '🔥',
-  error: '⚠️',
-  info: '📍',
+const ICONS = {
+  success: CheckCircle2,
+  error: AlertTriangle,
+  info: Info,
+} as const;
+
+const ICON_COLOR: Record<string, string> = {
+  success: 'text-signal-green',
+  error: 'text-signal-red',
+  info: 'text-gps-blue',
 };
 
 const BORDER: Record<string, string> = {
@@ -19,26 +26,29 @@ export function ToastViewport() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1000] flex w-full max-w-sm flex-col gap-2 px-4 sm:left-auto sm:right-4 sm:translate-x-0">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          role="status"
-          className={`flex items-start gap-3 rounded-xl border-l-4 bg-ink-800/95 px-4 py-3 shadow-card backdrop-blur ${BORDER[t.type]} animate-[fadeIn_0.2s_ease-out]`}
-        >
-          <span className="text-lg leading-none">{ICONS[t.type]}</span>
-          <div className="flex-1 text-sm">
-            <p className="font-semibold text-chalk-100">{t.title}</p>
-            {t.description && <p className="mt-0.5 text-chalk-300">{t.description}</p>}
-          </div>
-          <button
-            onClick={() => dismiss(t.id)}
-            className="text-chalk-500 hover:text-chalk-100"
-            aria-label="Fechar notificação"
+      {toasts.map((t) => {
+        const Icon = ICONS[t.type];
+        return (
+          <div
+            key={t.id}
+            role="status"
+            className={`flex items-start gap-3 rounded-xl border-l-4 bg-ink-800/95 px-4 py-3 shadow-card backdrop-blur ${BORDER[t.type]} animate-[fadeIn_0.2s_ease-out]`}
           >
-            ✕
-          </button>
-        </div>
-      ))}
+            <Icon className={`h-5 w-5 shrink-0 ${ICON_COLOR[t.type]}`} strokeWidth={2} />
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-chalk-100">{t.title}</p>
+              {t.description && <p className="mt-0.5 text-chalk-300">{t.description}</p>}
+            </div>
+            <button
+              onClick={() => dismiss(t.id)}
+              className="text-chalk-500 hover:text-chalk-100"
+              aria-label="Fechar notificação"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

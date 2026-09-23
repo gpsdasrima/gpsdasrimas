@@ -1,13 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  Check,
+  Crown,
+  LayoutDashboard,
+  Mic2,
+  PartyPopper,
+  Pencil,
+  Settings,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react';
 import { useBattleStore } from '../store/battleStore';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { supabase } from '../lib/supabaseClient';
+import { rowToAuditLogEntry } from '../lib/mappers';
 import { formatDateBR } from '../utils/date';
-import type { Battle } from '../types';
+import { maskEmail } from '../utils/mask';
+import type { AuditLogEntry, Battle } from '../types';
 
-type Tab = 'dashboard' | 'usuarios' | 'batalhas' | 'denuncias' | 'configuracoes';
+type Tab = 'dashboard' | 'usuarios' | 'batalhas' | 'denuncias' | 'atividade' | 'configuracoes';
 
 const REASON_LABEL: Record<string, string> = {
   local_incorreto: 'Local incorreto',
@@ -17,12 +35,22 @@ const REASON_LABEL: Record<string, string> = {
   outro: 'Outro',
 };
 
-const NAV_ITEMS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { key: 'usuarios', label: 'Usuários', icon: '👥' },
-  { key: 'batalhas', label: 'Batalhas', icon: '🎤' },
-  { key: 'denuncias', label: 'Denúncias', icon: '⚠️' },
-  { key: 'configuracoes', label: 'Configurações', icon: '⚙️' },
+const ACTION_LABEL: Record<string, string> = {
+  aprovar_batalha: 'aprovou a batalha',
+  rejeitar_batalha: 'rejeitou a batalha',
+  alterar_status_batalha: 'alterou o status da batalha',
+  remover_batalha: 'removeu a batalha',
+  promover_admin: 'promoveu a administrador',
+  resolver_denuncia: 'resolveu a denúncia',
+};
+
+const NAV_ITEMS: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'usuarios', label: 'Usuários', icon: Users },
+  { key: 'batalhas', label: 'Batalhas', icon: Mic2 },
+  { key: 'denuncias', label: 'Denúncias', icon: AlertTriangle },
+  { key: 'atividade', label: 'Atividade', icon: Activity },
+  { key: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 export function Admin() {
@@ -37,11 +65,27 @@ export function Admin() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [promoteEmail, setPromoteEmail] = useState('');
   const [promoting, setPromoting] = useState(false);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     fetchAllProfiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'atividade') return;
+    setAuditLoading(true);
+    supabase
+      .from('audit_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (!error && data) setAuditLog(data.map(rowToAuditLogEntry));
+        setAuditLoading(false);
+      });
+  }, [tab]);
 
   const filteredBattles = useMemo(() => {
     if (statusFilter === 'todas') return battles;
@@ -133,6 +177,7 @@ export function Admin() {
           <div className="space-y-1 rounded-2xl border border-ink-700 bg-ink-800/50 p-2">
             {NAV_ITEMS.map((item) => {
               const badge = badgeFor(item.key);
+              const Icon = item.icon;
               return (
                 <button
                   key={item.key}
@@ -143,8 +188,9 @@ export function Admin() {
                       : 'text-chalk-300 hover:bg-ink-700'
                   }`}
                 >
-                  <span>
-                    {item.icon} {item.label}
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" strokeWidth={2} />
+                    {item.label}
                   </span>
                   {badge > 0 && (
                     <span
@@ -163,18 +209,22 @@ export function Admin() {
 
         {/* Tabs no mobile */}
         <div className="flex gap-2 overflow-x-auto border-b border-ink-700 pb-0.5 lg:hidden [scrollbar-width:none]">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setTab(item.key)}
-              className={`-mb-px shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold ${
-                tab === item.key ? 'border-signal-yellow text-chalk-100' : 'border-transparent text-chalk-500'
-              }`}
-            >
-              {item.icon} {item.label}
-              {badgeFor(item.key) > 0 && ` (${badgeFor(item.key)})`}
-            </button>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                className={`-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-semibold ${
+                  tab === item.key ? 'border-signal-yellow text-chalk-100' : 'border-transparent text-chalk-500'
+                }`}
+              >
+                <Icon className="h-4 w-4" strokeWidth={2} />
+                {item.label}
+                {badgeFor(item.key) > 0 && ` (${badgeFor(item.key)})`}
+              </button>
+            );
+          })}
         </div>
 
         <div>
@@ -192,7 +242,10 @@ export function Admin() {
               <div>
                 <h2 className="font-display text-lg text-chalk-100">Batalhas pendentes</h2>
                 {pendingCount === 0 ? (
-                  <p className="mt-2 text-sm text-chalk-500">Nenhuma batalha aguardando revisão. 🎉</p>
+                  <p className="mt-2 flex items-center gap-1.5 text-sm text-chalk-500">
+                    <PartyPopper className="h-4 w-4" strokeWidth={2} />
+                    Nenhuma batalha aguardando revisão.
+                  </p>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {battles
@@ -212,9 +265,9 @@ export function Admin() {
                     {pendingCount > 5 && (
                       <button
                         onClick={() => setTab('batalhas')}
-                        className="text-xs font-semibold text-gps-blue underline"
+                        className="flex items-center gap-1 text-xs font-semibold text-gps-blue underline"
                       >
-                        Ver todas as {pendingCount} pendentes →
+                        Ver todas as {pendingCount} pendentes <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
@@ -276,9 +329,10 @@ export function Admin() {
                   />
                   <button
                     disabled={promoting}
-                    className="shrink-0 rounded-xl bg-signal-yellow px-4 py-2.5 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
+                    className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-signal-yellow px-4 py-2.5 text-sm font-bold text-ink-950 hover:brightness-110 disabled:opacity-60"
                   >
-                    {promoting ? 'Promovendo...' : '👑 Promover a admin'}
+                    <Crown className="h-4 w-4" strokeWidth={2.25} />
+                    {promoting ? 'Promovendo...' : 'Promover a admin'}
                   </button>
                 </form>
               )}
@@ -297,7 +351,7 @@ export function Admin() {
                     {allProfiles.map((a) => (
                       <tr key={a.id}>
                         <td className="px-3 py-2.5 font-medium text-chalk-100">{a.name}</td>
-                        <td className="px-3 py-2.5 text-chalk-300">{a.email}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-chalk-300">{maskEmail(a.email)}</td>
                         <td className="px-3 py-2.5 text-chalk-300">{a.city ?? '—'}</td>
                         <td className="px-3 py-2.5">
                           <span
@@ -320,6 +374,9 @@ export function Admin() {
                   </tbody>
                 </table>
               </div>
+              <p className="text-xs text-chalk-600">
+                Os e-mails aparecem parcialmente ocultos por privacidade, mesmo aqui no painel admin.
+              </p>
             </div>
           )}
 
@@ -347,8 +404,9 @@ export function Admin() {
                     {r.status === 'pendente' && (
                       <button
                         onClick={() => handleResolveReport(r.id)}
-                        className="mt-3 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-100 hover:border-signal-green hover:text-signal-green"
+                        className="mt-3 flex items-center gap-1.5 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-100 hover:border-signal-green hover:text-signal-green"
                       >
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.25} />
                         Marcar como resolvida
                       </button>
                     )}
@@ -358,9 +416,44 @@ export function Admin() {
             </div>
           )}
 
+          {tab === 'atividade' && (
+            <div>
+              <p className="mb-3 text-xs text-chalk-500">
+                Últimas 50 ações de moderação — aprovar/rejeitar/remover batalha, promover admin e resolver
+                denúncia. Registrado automaticamente pelo banco, ninguém consegue apagar ou forjar essas linhas.
+              </p>
+              {auditLoading ? (
+                <p className="text-sm text-chalk-500">Carregando...</p>
+              ) : auditLog.length === 0 ? (
+                <p className="text-sm text-chalk-500">Nenhuma atividade registrada ainda.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {auditLog.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-start gap-3 rounded-xl border border-ink-700 bg-ink-800/50 p-3.5"
+                    >
+                      <Activity className="mt-0.5 h-4 w-4 shrink-0 text-gps-blue" strokeWidth={2} />
+                      <div className="min-w-0 flex-1 text-sm">
+                        <p className="text-chalk-100">
+                          <span className="font-semibold">{entry.actorName ?? 'Alguém'}</span>{' '}
+                          {ACTION_LABEL[entry.action] ?? entry.action}
+                          {entry.targetLabel && <span className="text-chalk-300"> "{entry.targetLabel}"</span>}
+                        </p>
+                        <p className="mt-0.5 text-xs text-chalk-500">
+                          {new Date(entry.createdAt).toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {tab === 'configuracoes' && (
             <div className="rounded-2xl border border-dashed border-ink-600 p-8 text-center">
-              <p className="text-3xl">⚙️</p>
+              <Settings className="mx-auto h-8 w-8 text-chalk-600" strokeWidth={1.5} />
               <p className="mt-2 text-sm text-chalk-300">
                 Configurações do painel chegam em uma próxima versão (permissões por equipe, categorias, moderação automática).
               </p>
@@ -436,8 +529,9 @@ function BattleRow({
           <button
             onClick={onApprove}
             disabled={busy}
-            className="rounded-lg bg-signal-green/15 px-3 py-1.5 text-xs font-bold text-signal-green disabled:opacity-60"
+            className="flex items-center gap-1 rounded-lg bg-signal-green/15 px-3 py-1.5 text-xs font-bold text-signal-green disabled:opacity-60"
           >
+            <Check className="h-3.5 w-3.5" strokeWidth={2.25} />
             Aprovar
           </button>
         )}
@@ -445,19 +539,25 @@ function BattleRow({
           <button
             onClick={onReject}
             disabled={busy}
-            className="rounded-lg bg-signal-red/15 px-3 py-1.5 text-xs font-bold text-signal-red disabled:opacity-60"
+            className="flex items-center gap-1 rounded-lg bg-signal-red/15 px-3 py-1.5 text-xs font-bold text-signal-red disabled:opacity-60"
           >
+            <X className="h-3.5 w-3.5" strokeWidth={2.25} />
             Rejeitar
           </button>
         )}
-        <button onClick={onEdit} className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-100">
+        <button
+          onClick={onEdit}
+          className="flex items-center gap-1 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-100"
+        >
+          <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
           Editar
         </button>
         <button
           onClick={onRemove}
           disabled={busy}
-          className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-300 hover:border-signal-red hover:text-signal-red disabled:opacity-60"
+          className="flex items-center gap-1 rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-bold text-chalk-300 hover:border-signal-red hover:text-signal-red disabled:opacity-60"
         >
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
           Remover
         </button>
       </div>

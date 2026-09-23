@@ -79,6 +79,28 @@ export interface ToastMessage {
   description?: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  battleId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  targetLabel: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface BattleFormData {
   name: string;
   description: string;

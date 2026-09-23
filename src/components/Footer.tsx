@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Map, Palette, Sparkles, Users } from 'lucide-react';
 import { BRAND } from '../constants/assets';
 
 export function Footer() {
@@ -11,12 +12,18 @@ export function Footer() {
         </div>
 
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-chalk-500">
-          <Link to="/mapa" className="hover:text-signal-yellow">
-            📍 Mapa
+          <Link to="/mapa" className="flex items-center gap-1.5 hover:text-signal-yellow">
+            <Map className="h-3.5 w-3.5" strokeWidth={2} /> Mapa
           </Link>
-          <span>👥 Comunidade</span>
-          <span>💻 Tecnologia</span>
-          <span>🎨 Cultura Viva</span>
+          <span className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" strokeWidth={2} /> Comunidade
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={2} /> Tecnologia
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Palette className="h-3.5 w-3.5" strokeWidth={2} /> Cultura Viva
+          </span>
         </nav>
       </div>
     </footer>

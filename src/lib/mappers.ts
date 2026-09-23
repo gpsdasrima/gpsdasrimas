@@ -1,10 +1,12 @@
 import type { Database } from './database.types';
-import type { Battle, Favorite, Report, UserProfile } from '../types';
+import type { AuditLogEntry, Battle, ChatMessage, Favorite, Report, UserProfile } from '../types';
 
 type BattleRow = Database['public']['Tables']['battles']['Row'];
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type FavoriteRow = Database['public']['Tables']['favorites']['Row'];
 type ReportRow = Database['public']['Tables']['reports']['Row'];
+type ChatMessageRow = Database['public']['Tables']['chat_messages']['Row'];
+type AuditLogRow = Database['public']['Tables']['audit_log']['Row'];
 
 export function rowToBattle(row: BattleRow): Battle {
   return {
@@ -68,6 +70,32 @@ export function rowToReport(row: ReportRow): Report {
     reason: row.reason,
     description: row.description ?? undefined,
     status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export function rowToChatMessage(row: ChatMessageRow): ChatMessage {
+  return {
+    id: row.id,
+    battleId: row.battle_id,
+    userId: row.user_id,
+    userName: row.user_name,
+    userAvatar: row.user_avatar ?? undefined,
+    message: row.message,
+    createdAt: row.created_at,
+  };
+}
+
+export function rowToAuditLogEntry(row: AuditLogRow): AuditLogEntry {
+  return {
+    id: row.id,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    action: row.action,
+    targetType: row.target_type,
+    targetId: row.target_id,
+    targetLabel: row.target_label,
+    details: row.details,
     createdAt: row.created_at,
   };
 }

@@ -1,3 +1,4 @@
+import { Car, ExternalLink } from 'lucide-react';
 import { externalNavLinks, formatDuration, type RouteResult } from '../utils/routing';
 
 interface Props {
@@ -45,7 +46,7 @@ export function RouteInfoPanel({ route, loading, error, destination, origin, onR
             </p>
             <p className="text-xs text-chalk-500">~ {formatDuration(route.durationMin)} de carro</p>
           </div>
-          <span className="text-2xl">🚗</span>
+          <Car className="h-7 w-7 text-gps-blue" strokeWidth={1.75} />
         </div>
       )}
 
@@ -54,25 +55,25 @@ export function RouteInfoPanel({ route, loading, error, destination, origin, onR
           href={links.googleMaps}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 rounded-lg bg-gps-blue px-3 py-2 text-center text-xs font-bold text-ink-950"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gps-blue px-3 py-2 text-center text-xs font-bold text-ink-950"
         >
-          Google Maps
+          Google Maps <ExternalLink className="h-3 w-3" />
         </a>
         <a
           href={links.waze}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 rounded-lg border border-ink-600 px-3 py-2 text-center text-xs font-bold text-chalk-100"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-ink-600 px-3 py-2 text-center text-xs font-bold text-chalk-100"
         >
-          Waze
+          Waze <ExternalLink className="h-3 w-3" />
         </a>
         <a
           href={links.appleMaps}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 rounded-lg border border-ink-600 px-3 py-2 text-center text-xs font-bold text-chalk-100"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-ink-600 px-3 py-2 text-center text-xs font-bold text-chalk-100"
         >
-          Apple Maps
+          Apple Maps <ExternalLink className="h-3 w-3" />
         </a>
       </div>
     </div>
